@@ -1,8 +1,6 @@
-
 import argparse, json
-from mmlu_tools.datasets import read_jsonl_samples
-from mmlu_tools.generate_cot_answer import generate_cot_answer
-
+from src.datasets import read_jsonl_samples
+from src.generate_cot_answer import generate_cot_answer
 
 
 def main():

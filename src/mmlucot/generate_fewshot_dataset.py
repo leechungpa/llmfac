@@ -1,8 +1,6 @@
-
-#!/usr/bin/env python3
 import argparse
-from mmlu_tools.datasets import read_jsonl_samples, save_jsonl
-from mmlu_tools.formatting import make_jsonl
+from src.datasets import read_jsonl_samples, save_jsonl
+from src.formatting import make_jsonl
 
 
 def main():
@@ -18,6 +16,7 @@ def main():
     rows = list(make_jsonl(dataset, with_cot_answer=args.org_is_cot, n_shots=args.n_shots, seed=args.seed))
     save_jsonl(args.out_path, rows)
     print(f"saved {len(rows)} -> {args.out_path}")
+
 
 if __name__ == "__main__":
     main()

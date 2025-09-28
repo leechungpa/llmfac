@@ -1,39 +1,8 @@
 import random
 from typing import List, Dict, Iterable
 
-from . import LETTER
+from . import LETTER, SYSTEM_PROMPT
 from .datasets import Sample, SampleCoT
-
-# SYSTEM_PROMPT = "You are solving the multiple-choice question."
-
-# INSTRUCTION_PROMPT = (
-#     "For each question:\n"
-#     "1. Think step by step. Show your chain of thought explicitly in the output.\n"
-#     "   - Break the question into components.\n"
-#     "   - Analyze relevant knowledge.\n"
-#     "   - Deduce the correct option logically.\n"
-#     "2. After the reasoning, provide the answer in the format:\n"
-#     '   "Answer: <choice>"\n'
-#     "\n"
-#     "Never give only the answer without reasoning.\n"
-#     "Always display the reasoning first, then the answer.\n"
-#     "If questions and answers are given before the actual question, study the examples carefully.\n"
-# )
-
-
-SYSTEM_PROMPT = (
-    "You are solving the multiple-choice question. For each question:\n"
-    "1. Think step by step. Show your chain of thought explicitly in the output.\n"
-    "   - Break the question into components.\n"
-    "   - Analyze relevant knowledge.\n"
-    "   - Deduce the correct option logically.\n"
-    "2. After the reasoning, provide the answer in the format:\n"
-    '   "Answer: <choice>"\n'
-    "\n"
-    "Never give only the answer without reasoning.\n"
-    "Always display the reasoning first, then the answer.\n"
-    "If questions and answers are given before the actual question, study the examples carefully.\n"
-)
 
 
 def render_qa(s: Sample|SampleCoT, with_answer: bool = True, with_cot_answer: bool = False) -> str:
@@ -84,10 +53,10 @@ def make_jsonl(
     for t in dataset:
         shots: List[Sample | SampleCoT] = []
         if n_shots > 0:
-            # # same subject shots provide better in-distribution examples, but avoid duplicate question
+            # # same subject shots
             # same_subject = [s for s in dataset if s.subject == t.subject and s.question != t.question]
             # pool = same_subject if same_subject else [s for s in dataset if s.question != t.question]
-            # same category shots provide better in-distribution examples, but avoid duplicate question
+            # same category shots
             same_category = [s for s in dataset if s.category == t.category and s.question != t.question]
             pool = same_category if same_category else [s for s in dataset if s.question != t.question]
             random.shuffle(pool)

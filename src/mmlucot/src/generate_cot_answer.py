@@ -2,9 +2,9 @@ import os
 import re
 import time
 
-from . import LETTER
+from . import LETTER, SYSTEM_PROMPT
 from .datasets import Sample
-from .formatting import render_qa, SYSTEM_PROMPT
+from .formatting import render_qa
 
 from openai import OpenAI
 

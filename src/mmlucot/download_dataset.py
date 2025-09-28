@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
-import argparse, os, json
-from mmlu_tools.datasets import load_all_test_and_split, save_jsonl
+import argparse, os
+from src.datasets import load_all_test_and_split, save_jsonl
 from dataclasses import asdict
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -22,6 +22,7 @@ def main():
 
     print(f"saved {len(train)} -> {train_p}")
     print(f"saved {len(test)}  -> {test_p}")
+
 
 if __name__ == "__main__":
     main()
