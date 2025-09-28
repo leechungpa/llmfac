@@ -100,46 +100,95 @@ You also can add a custom chat template to [template.py](src/llamafactory/data/t
 
 
 ```bash
-git clone --depth 1 https://github.com/hiyouga/LLaMA-Factory.git
-cd LLaMA-Factory
-pip install -e ".[torch,metrics]" --no-build-isolation
+conda create -n llmfac python=3.10.0
+conda activate llmfac           
 
+pip install -e ".[torch,metrics]" --no-build-isolation
 pip uninstall torch torchvision torchaudio
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+
 python -c "import torch; print(torch.cuda.is_available())"
+
+# pip install -U datasets openai google-generativeai
 ```
 
 ### Data Preparation
 
 Please refer to [data/README.md](data/README.md) for checking the details about the format of dataset files. You can use datasets on HuggingFace / ModelScope / Modelers hub, load the dataset in local disk, or specify a path to s3/gcs cloud storage.
 
-> [!NOTE]
-> Please update `data/dataset_info.json` to use your custom dataset.
+Please update `data/dataset_info.json` to use your custom dataset.
 
 
-### Quickstart
+### MMLU Pipeline
 
-Use the following 3 commands to run LoRA **fine-tuning**, **inference** and **merging** of the Llama3-8B-Instruct model, respectively.
-
+1. split datasets
 ```bash
-llamafactory-cli train examples/train_lora/llama3_lora_sft.yaml
-llamafactory-cli chat examples/inference/llama3_lora_sft.yaml
-llamafactory-cli export examples/merge_lora/llama3_lora_sft.yaml
+python3 src/mmlucot/download_dataset.py \
+  --out_dir data/mmlu \
+  --train_size 1000 \
+  --test_size 1000 \
+  --seed 0
 ```
 
-See [examples/README.md](examples/README.md) for advanced usage (including distributed training).
+2. generate chain-of-thought answer
+```bash
+python src/mmlucot/generate_cot_dataset.py \
+  --org_path data/mmlu/train_n1000_seed0.jsonl \
+  --out_path data/mmlu/train_n1000_seed0_cot.jsonl \
+  --model gpt-4.1-mini
 
-
-### Use W&B Logger
-
-To use [Weights & Biases](https://wandb.ai) for logging experimental results, you need to add the following arguments to yaml files.
-
-```yaml
-report_to: wandb
-run_name: test_run # optional
+python src/mmlucot/generate_cot_dataset.py \
+  --org_path data/mmlu/test_n1000_seed0.jsonl \
+  --out_path data/mmlu/test_n1000_seed0_cot.jsonl \
+  --model gpt-4.1-mini
 ```
 
-Set `WANDB_API_KEY` to [your key](https://wandb.ai/authorize) when launching training tasks to log in with your W&B account.
+3. generate zero-shot / few-shot JSONL
+```bash
+# train
+python src/mmlucot/generate_fewshot_dataset.py \
+  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
+  --org_is_cot \
+  --out_path data/mmlu/final/train_n1000_seed0_shot0.jsonl \
+  --n_shots 0 \
+  --seed 0
+
+python src/mmlucot/generate_fewshot_dataset.py \
+  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
+  --org_is_cot \
+  --out_path data/mmlu/final/train_n1000_seed0_shot3.jsonl \
+  --n_shots 3 \
+  --seed 0
+
+python src/mmlucot/generate_fewshot_dataset.py \
+  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
+  --org_is_cot \
+  --out_path data/mmlu/final/train_n1000_seed0_shot5.jsonl \
+  --n_shots 5 \
+  --seed 0
+
+# test
+python src/mmlucot/generate_fewshot_dataset.py \
+  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
+  --org_is_cot \
+  --out_path data/mmlu/final/test_n1000_seed0_shot0.jsonl \
+  --n_shots 0 \
+  --seed 0
+```
+
+4. modify jsonl for evaluation
+```bash
+python src/mmlucot/modify_jsonl_for_evaluation.py \
+  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
+  --output_dir train
+
+python src/mmlucot/modify_jsonl_for_evaluation.py \
+  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
+  --output_dir test
+```
+
+
+
 
 
 ## Forked from:
