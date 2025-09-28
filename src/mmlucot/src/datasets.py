@@ -1,4 +1,3 @@
-
 import random
 import json
 from dataclasses import dataclass

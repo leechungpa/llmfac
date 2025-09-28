@@ -1,28 +1,12 @@
-
 import os
 import re
 import time
 
 from . import LETTER
 from .datasets import Sample
-from .formatting import render_qa
+from .formatting import render_qa, SYSTEM_PROMPT
 
 from openai import OpenAI
-
-
-SYSTEM_PROMPT = (
-    "You are solving MMLU (Massive Multitask Language Understanding) problems.\n"
-    "For each question:\n"
-    "1. Think step by step. Show your chain of thought explicitly in the output.\n"
-    "   - Break the question into components.\n"
-    "   - Analyze relevant knowledge.\n"
-    "   - Deduce the correct option logically.\n"
-    "2. After the reasoning, provide the answer in the format:\n"
-    '   "Answer: <choice or text>"\n'
-    "\n"
-    "Never give only the answer without reasoning.\n"
-    "Always display the reasoning first, then the answer."
-)
 
 
 def _extract_answer(text: str) -> str:

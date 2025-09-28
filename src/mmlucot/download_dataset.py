@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import argparse, os, json
 from mmlu_tools.datasets import load_all_test_and_split, save_jsonl

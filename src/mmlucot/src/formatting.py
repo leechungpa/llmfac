@@ -4,10 +4,25 @@ from typing import List, Dict, Iterable
 from . import LETTER
 from .datasets import Sample, SampleCoT
 
-SYSTEM_PROMPT = "You are solving the multiple-choice question."
+# SYSTEM_PROMPT = "You are solving the multiple-choice question."
 
-INSTRUCTION_PROMPT = (
-    "For each question:\n"
+# INSTRUCTION_PROMPT = (
+#     "For each question:\n"
+#     "1. Think step by step. Show your chain of thought explicitly in the output.\n"
+#     "   - Break the question into components.\n"
+#     "   - Analyze relevant knowledge.\n"
+#     "   - Deduce the correct option logically.\n"
+#     "2. After the reasoning, provide the answer in the format:\n"
+#     '   "Answer: <choice>"\n'
+#     "\n"
+#     "Never give only the answer without reasoning.\n"
+#     "Always display the reasoning first, then the answer.\n"
+#     "If questions and answers are given before the actual question, study the examples carefully.\n"
+# )
+
+
+SYSTEM_PROMPT = (
+    "You are solving the multiple-choice question. For each question:\n"
     "1. Think step by step. Show your chain of thought explicitly in the output.\n"
     "   - Break the question into components.\n"
     "   - Analyze relevant knowledge.\n"
@@ -16,11 +31,8 @@ INSTRUCTION_PROMPT = (
     '   "Answer: <choice>"\n'
     "\n"
     "Never give only the answer without reasoning.\n"
-    "Always display the reasoning first, then the answer."
-    "\n"
-    "If example questions and answers are given before the actual question:\n"
-    " - Study the examples carefully and follow the same reasoning and answer style.\n"
-    " - Keep the format consistent with the examples provided."
+    "Always display the reasoning first, then the answer.\n"
+    "If questions and answers are given before the actual question, study the examples carefully.\n"
 )
 
 
@@ -40,12 +52,12 @@ def make_record(
     target: Sample|SampleCoT,
     shots: List[Sample|SampleCoT],
     with_cot_answer: bool,
-    instruction_msg: str,
+    # instruction_msg: str,
     system_msg: str,
 ) -> Dict:
     input_msg_parts = []
-    for i, ex in enumerate(shots, 1):
-        input_msg_parts.append(f"[Example {i}]\n" + render_qa(ex, with_answer=True, with_cot_answer=with_cot_answer))
+    for ex in shots:
+        input_msg_parts.append(f"[Question]\n" + render_qa(ex, with_answer=True, with_cot_answer=with_cot_answer))
     input_msg_parts.append("[Question]\n" + render_qa(target, with_answer=False, with_cot_answer=with_cot_answer))
     input_msg = "\n\n".join(input_msg_parts)
 
@@ -57,7 +69,7 @@ def make_record(
     return {
         "input": input_msg,
         "output": output_msg,
-        "instruction": instruction_msg,
+        # "instruction": instruction_msg,
         "system": system_msg,
     }
 
@@ -81,4 +93,5 @@ def make_jsonl(
             random.shuffle(pool)
             shots = pool[: min(n_shots, len(pool))]
 
-        yield make_record(t, shots, with_cot_answer, INSTRUCTION_PROMPT, SYSTEM_PROMPT)
+        # yield make_record(t, shots, with_cot_answer, INSTRUCTION_PROMPT, SYSTEM_PROMPT)
+        yield make_record(t, shots, with_cot_answer, SYSTEM_PROMPT)
