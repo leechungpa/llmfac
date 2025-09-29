@@ -1,0 +1,43 @@
+### model
+# model_name_or_path: Qwen/Qwen2.5-7B-Instruct
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+# lora_rank: 8
+# lora_target: q_proj,k_proj
+
+### dataset
+dataset: mmlu_train_cot_s0
+template: qwen
+cutoff_len: 500000
+max_samples: 100000
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+# mix_strategy: interleave_under
+
+### output
+logging_steps: 50
+save_steps: 100
+plot_loss: true
+# overwrite_output_dir: true
+save_only_model: false
+report_to: wandb
+run_name: qwen_ft_mmlu
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8 # effective batch size = 8
+learning_rate: 1.0e-5
+# num_train_epochs: 1
+warmup_ratio: 0.0
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+
+# ## eval
+# eval_dataset: mmlu_test_s0
+# per_device_eval_batch_size: 4
+# eval_strategy: steps
+# eval_steps: 50

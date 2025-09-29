@@ -1,0 +1,24 @@
+### model
+# model_name_or_path: Qwen/Qwen2.5-7B-Instruct
+# adapter_name_or_path: results/llama3-8b/lora/sft
+
+### method
+# stage: sft
+# do_predict: true
+finetuning_type: lora
+
+### dataset
+task: mmlu_test # mmlu_test, ceval_validation, cmmlu_test
+task_dir: evaluation
+template: fewshot
+lang: en
+# cutoff_len: 500000
+# max_samples: 100000
+# n_shot: 5
+
+### output
+# overwrite_output_dir: true
+# save_dir: results/llama3-8b/lora/eval
+
+### eval
+# batch_size: 4
