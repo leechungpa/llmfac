@@ -22,7 +22,7 @@ def make_record(
     shots: List[Sample|SampleCoT],
     with_cot_answer: bool,
     system_msg: str,
-    instruction_msg: str,
+    # instruction_msg: str,
 ) -> Dict:
     input_msg_parts = []
     for ex in shots:
@@ -37,7 +37,7 @@ def make_record(
 
     return {
         "system": system_msg,
-        "instruction": instruction_msg,
+        # "instruction": instruction_msg,
         "input": input_msg,
         "output": output_msg,
     }
@@ -49,7 +49,7 @@ def make_jsonl(
     n_shots: int,
     seed: int = 0,
 ) -> Iterable[Dict]:
-    system_msg, instruction_msg = SYSTEM_PROMPT.split("\n", 1)
+    # system_msg, instruction_msg = SYSTEM_PROMPT.split("\n", 1)
     random.seed(seed)
     for t in dataset:
         shots: List[Sample | SampleCoT] = []
@@ -63,4 +63,5 @@ def make_jsonl(
             random.shuffle(pool)
             shots = pool[: min(n_shots, len(pool))]
 
-        yield make_record(t, shots, with_cot_answer, system_msg, instruction_msg)
+        # yield make_record(t, shots, with_cot_answer, system_msg, instruction_msg)
+        yield make_record(t, shots, with_cot_answer, SYSTEM_PROMPT)
