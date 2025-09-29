@@ -47,21 +47,23 @@ def make_jsonl(
     dataset: List[Sample | SampleCoT],
     with_cot_answer: bool,
     n_shots: int,
+    subset_category: None|str = None,
     seed: int = 0,
 ) -> Iterable[Dict]:
     # system_msg, instruction_msg = SYSTEM_PROMPT.split("\n", 1)
     random.seed(seed)
     for t in dataset:
-        shots: List[Sample | SampleCoT] = []
-        if n_shots > 0:
-            # # same subject shots
-            # same_subject = [s for s in dataset if s.subject == t.subject and s.question != t.question]
-            # pool = same_subject if same_subject else [s for s in dataset if s.question != t.question]
-            # same category shots
-            same_category = [s for s in dataset if s.category == t.category and s.question != t.question]
-            pool = same_category if same_category else [s for s in dataset if s.question != t.question]
-            random.shuffle(pool)
-            shots = pool[: min(n_shots, len(pool))]
+        if (subset_category is None) or (t.category == subset_category):
+            shots: List[Sample | SampleCoT] = []
+            if n_shots > 0:
+                # # same subject shots
+                # same_subject = [s for s in dataset if s.subject == t.subject and s.question != t.question]
+                # pool = same_subject if same_subject else [s for s in dataset if s.question != t.question]
+                # same category shots
+                same_category = [s for s in dataset if s.category == t.category and s.question != t.question]
+                pool = same_category if same_category else [s for s in dataset if s.question != t.question]
+                random.shuffle(pool)
+                shots = pool[: min(n_shots, len(pool))]
 
-        # yield make_record(t, shots, with_cot_answer, system_msg, instruction_msg)
-        yield make_record(t, shots, with_cot_answer, SYSTEM_PROMPT)
+            # yield make_record(t, shots, with_cot_answer, system_msg, instruction_msg)
+            yield make_record(t, shots, with_cot_answer, SYSTEM_PROMPT)

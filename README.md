@@ -80,6 +80,19 @@ for n in {0..5}; do
     --seed 0
 done
 
+for n in {0..5}; do
+for cat in "STEM" "Social Sciences" "Humanities" "Other" ; do
+  python src/mmlucot/generate_fewshot_dataset.py \
+    --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
+    --org_is_cot \
+    --out_path "data/mmlu/cot/train_n1000_seed0_shot${n}_${cat}.jsonl" \
+    --n_shots ${n} \
+    --subset_category "${cat}" \
+    --seed 0
+done
+done
+
+
 # test
 python src/mmlucot/generate_fewshot_dataset.py \
   --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
