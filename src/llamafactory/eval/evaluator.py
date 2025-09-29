@@ -40,6 +40,7 @@
 import json
 import os
 from typing import TYPE_CHECKING, Any, Optional
+import re
 
 import numpy as np
 import torch
@@ -57,31 +58,61 @@ from .template import get_eval_template
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+VERBOSE = False
 
 class Evaluator:
     def __init__(self, args: Optional[dict[str, Any]] = None) -> None:
         self.model_args, self.data_args, self.eval_args, finetuning_args = get_eval_args(args)
         self.tokenizer = load_tokenizer(self.model_args)["tokenizer"]
-        self.tokenizer.padding_side = "right"  # avoid overflow issue in batched inference for llama2
+        self.tokenizer.padding_side = "left"  # avoid overflow issue in batched inference for llama2
         self.template = get_template_and_fix_tokenizer(self.tokenizer, self.data_args)
         self.model = load_model(self.tokenizer, self.model_args, finetuning_args)
         self.eval_template = get_eval_template(self.eval_args.lang)
         self.choice_inputs = [self.tokenizer.encode(ch, add_special_tokens=False)[-1] for ch in CHOICES]
 
+
+    def _parse_answer(self, text: str) -> str:
+        try:
+            for line in reversed(text.splitlines()):
+                match = re.match(r"^\s*Answer\s*:\s*([A-D])", line, flags=re.IGNORECASE)
+                if match:
+                    return match.group(1)
+            return None
+        except Exception:
+            return None
+        
     @torch.inference_mode()
     def batch_inference(self, batch_input: dict[str, "torch.Tensor"]) -> list[str]:
-        logits = self.model(**batch_input).logits
-        lengths = torch.sum(batch_input["attention_mask"], dim=-1)
-        word_probs = torch.stack([logits[i, lengths[i] - 1] for i in range(len(lengths))], dim=0)
-        choice_probs = torch.nn.functional.softmax(word_probs[:, self.choice_inputs], dim=-1).detach()
-        return [chr(ord("A") + offset.item()) for offset in torch.argmax(choice_probs, dim=-1)]
+        gen_kwargs = {
+            "tokenizer": self.tokenizer,
+            "stop_strings": ["[Question]"],
+            # "do_sample": False,
+            "repetition_penalty": 1.0,
+            "temperature": 0.2,
+            "top_k": 20,
+            "top_p": 0.95,
+        }
+
+        input_len = batch_input["input_ids"].shape[1]
+        gen_kwargs["max_length"] = input_len+2000
+
+        gen_ids = self.model.generate(**batch_input, **gen_kwargs)
+        texts = [self.tokenizer.decode(ids[input_len:], skip_special_tokens=True) for ids in gen_ids]
+
+        if VERBOSE:
+            print("[----output----]")
+            for text in texts:
+                print(text)
+                print("---------")
+        return [self._parse_answer(text) for text in texts]
 
     def eval(self) -> None:
         eval_task = self.eval_args.task.split("_")[0]
         eval_split = self.eval_args.task.split("_")[1]
 
         mapping = cached_file(
-            path_or_repo_id=os.path.join(self.eval_args.task_dir, eval_task),
+            # path_or_repo_id=os.path.join(self.eval_args.task_dir, eval_task),
+            path_or_repo_id="evaluation/mmlucot",
             filename="mapping.json",
             cache_dir=self.model_args.cache_dir,
             token=self.model_args.hf_hub_token,
@@ -95,8 +126,13 @@ class Evaluator:
         results = {}
         for subject in pbar:
             dataset = load_dataset(
-                path=os.path.join(self.eval_args.task_dir, eval_task),
-                name=subject,
+            #     path=os.path.join(self.eval_args.task_dir, eval_task),
+            #     name=subject,
+                "json",
+                data_files={
+                    "train": f"evaluation/mmlucot/train/{subject}.jsonl",
+                    "test": f"evaluation/mmlucot/test/{subject}.jsonl"
+                },
                 cache_dir=self.model_args.cache_dir,
                 download_mode=self.eval_args.download_mode,
                 token=self.model_args.hf_hub_token,
@@ -116,7 +152,16 @@ class Evaluator:
 
                 input_ids, _ = self.template.encode_oneturn(tokenizer=self.tokenizer, messages=messages)
                 inputs.append({"input_ids": input_ids, "attention_mask": [1] * len(input_ids)})
-                labels.append(messages[-1]["content"])
+                labels.append(dataset[eval_split][i]['answer_idx'])
+
+                if VERBOSE:
+                    if i==0:
+                        print("[----inputs----]")
+                        texts = self.tokenizer.batch_decode(input_ids, skip_special_tokens=True)
+                        print("".join(texts))
+                        print("[----answer----]")
+                        print(labels[i])
+                        print("[--------------]")
 
             for i in trange(
                 0, len(inputs), self.eval_args.batch_size, desc="Predicting batches", position=1, leave=False
@@ -125,6 +170,12 @@ class Evaluator:
                     inputs[i : i + self.eval_args.batch_size], return_attention_mask=True, return_tensors="pt"
                 ).to(self.model.device)
                 preds = self.batch_inference(batch_input)
+
+                if VERBOSE:
+                    print("[----pred----]")
+                    print(preds, labels[i:i + self.eval_args.batch_size])
+                    print(np.array(preds) == np.array(labels[i:i + self.eval_args.batch_size]))
+                    print("[--------------]")
                 outputs += preds
 
             corrects = np.array(outputs) == np.array(labels)

@@ -18,6 +18,21 @@ from ..data import Role
 from ..extras.constants import CHOICES
 
 
+SYSTEM_PROMPT = (
+    "You are solving the multiple-choice question. For each question:\n"
+    "1. Think step by step. Show your chain of thought explicitly in the output.\n"
+    "   - Break the question into components.\n"
+    "   - Analyze relevant knowledge.\n"
+    "   - Deduce the correct option logically.\n"
+    "2. After the reasoning, provide the answer in the format:\n"
+    '   "Answer: <choice>"\n'
+    "\n"
+    "Never give only the answer without reasoning.\n"
+    "Always display the reasoning first, then the answer.\n"
+    "If questions and answers are given before the actual question, study the examples carefully.\n"
+)
+
+
 @dataclass
 class EvalTemplate:
     system: str
@@ -46,7 +61,11 @@ class EvalTemplate:
         prompt, response = self._parse_example(target_data)
         messages.append({"role": Role.USER.value, "content": prompt})
         messages.append({"role": Role.ASSISTANT.value, "content": response})
-        messages[0]["content"] = self.system.format(subject=subject_name) + messages[0]["content"]
+        # messages[0]["content"] = self.system.format(subject=subject_name) + messages[0]["content"]
+        for i in range(len(messages)):
+            if messages[i]["role"] == Role.USER.value:
+                messages[i]["content"] = self.system.format(subject=subject_name) + messages[i]["content"]
+        messages[0]["content"] = SYSTEM_PROMPT + messages[0]["content"]
         return messages
 
 
@@ -65,15 +84,10 @@ def get_eval_template(name: str) -> "EvalTemplate":
 
 _register_eval_template(
     name="en",
-    system="The following are multiple choice questions (with answers) about {subject}.\n\n",
-    choice="\n{choice}. {content}",
-    answer="\nAnswer:",
-)
-
-
-_register_eval_template(
-    name="zh",
-    system="以下是中国关于{subject}考试的单项选择题，请选出其中的正确答案。\n\n",
-    choice="\n{choice}. {content}",
-    answer="\n答案：",
+    system="\n[Question]\nSubject: {subject}.\nQuestion:",
+    choice="\n{choice}) {content}",
+    answer="\n\n",
+#     system="The following are multiple choice questions (with answers) about {subject}.\n\n",
+#     choice="\n{choice}. {content}",
+#     answer="\nAnswer:"
 )
