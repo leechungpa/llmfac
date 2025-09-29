@@ -46,6 +46,7 @@ llamafactory-cli train scripts/train.yaml \
 
 for shot in 0 3 5; do
 llamafactory-cli eval scripts/eval.yaml \
+    model_name_or_path="$model_name_or_path" \
     adapter_name_or_path="${OUTDIR}${suffix}_epoch1" \
     save_dir="${OUTDIR}${suffix}_epoch1/eval_s${shot}" \
     n_shot=$shot \
@@ -69,6 +70,7 @@ for i in 2 3 4 5 6; do
 
   for shot in 0 3 5; do
   llamafactory-cli eval scripts/eval.yaml \
+      model_name_or_path="$model_name_or_path" \
       adapter_name_or_path="${OUTDIR}${suffix}_epoch${next}" \
       save_dir="${OUTDIR}${suffix}_epoch${next}/eval_s${shot}" \
       n_shot=$shot \
@@ -91,6 +93,7 @@ llamafactory-cli train scripts/train.yaml \
 
 for shot in 0 3 5; do
 llamafactory-cli eval scripts/eval.yaml \
+    model_name_or_path="$model_name_or_path" \
     adapter_name_or_path="${OUTDIR}${suffix}_epoch1" \
     save_dir="${OUTDIR}${suffix}_epoch1/eval_s${shot}" \
     n_shot=$shot \
@@ -116,6 +119,7 @@ for i in 2 3 4 5 6; do
 
   for shot in 0 3 5; do
   llamafactory-cli eval scripts/eval.yaml \
+      model_name_or_path="$model_name_or_path" \
       adapter_name_or_path="${OUTDIR}${suffix}_epoch${next}" \
       save_dir="${OUTDIR}${suffix}_epoch${next}/eval_s${shot}" \
       n_shot=$shot \
