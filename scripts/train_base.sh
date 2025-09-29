@@ -53,13 +53,12 @@ llamafactory-cli train scripts/train.yaml \
 
 # eval
 max_samples=100
-OUTDIR="./results"
-# suffix="${targets[$target]}_r${rank}_epoch${epochs}"
 
 for shot in 0 3 5; do
 llamafactory-cli eval scripts/eval.yaml \
-    adapter_name_or_path="${OUTDIR}/${model_name_or_path}/${suffix}" \
-    save_dir="${OUTDIR}/eval/n200/${model_name_or_path}/${suffix}_s${shot}" \
+    model_name_or_path="$model_name_or_path" \
+    adapter_name_or_path="${OUTDIR}${suffix}" \
+    save_dir="${OUTDIR}${suffix}/eval_s${shot}" \
     n_shot=$shot \
     max_samples=$max_samples
 done
