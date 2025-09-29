@@ -11,7 +11,7 @@ finetuning_type: lora
 ### dataset
 dataset: mmlu_train_cot_s0
 template: qwen
-cutoff_len: 500000
+cutoff_len: 32768 # Max position embeddings for Qwen2.5
 max_samples: 100000
 preprocessing_num_workers: 16
 dataloader_num_workers: 4

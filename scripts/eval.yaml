@@ -12,8 +12,8 @@ task: mmlu_test # mmlu_test, ceval_validation, cmmlu_test
 task_dir: evaluation
 template: fewshot
 lang: en
-# cutoff_len: 500000
-# max_samples: 100000
+cutoff_len: 32768 # Max position embeddings for Qwen2.5
+max_samples: 100000
 # n_shot: 5
 
 ### output
