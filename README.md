@@ -68,9 +68,8 @@ python src/mmlucot/generate_cot_dataset.py \
   --model gpt-4.1-mini
 ```
 
-3. generate zero-shot / few-shot JSONL
+3. generate train datasets
 ```bash
-# train
 for n in {0..5}; do
   python src/mmlucot/generate_fewshot_dataset.py \
     --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
@@ -91,19 +90,35 @@ for cat in "STEM" "Social Sciences" "Humanities" "Other" ; do
     --seed 0
 done
 done
-
-
-# test
-python src/mmlucot/generate_fewshot_dataset.py \
-  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
-  --org_is_cot \
-  --out_path data/mmlu/cot/test_n1000_seed0_shot0.jsonl \
-  --n_shots 0 \
-  --seed 0
 ```
 
-4. modify jsonl for evaluation
+4. generate test dataset
+
 ```bash
+# python src/mmlucot/generate_fewshot_dataset.py \
+#   --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
+#   --org_is_cot \
+#   --out_path data/mmlu/cot/test_n1000_seed0_shot0.jsonl \
+#   --n_shots 0 \
+#   --seed 0
+```
+
+```bash
+python src/mmlucot/modify_jsonl_for_evaluation.py \
+  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
+  --output_dir train
+
+python src/mmlucot/modify_jsonl_for_evaluation.py \
+  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
+  --output_dir test
+```
+
+```bash
+python src/mmlucot/subset_jsonl.py \
+  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
+  --out_path data/mmlu/test_n100_seed0_cot.jsonl \
+  --subset_n 100 --seed 0
+
 python src/mmlucot/modify_jsonl_for_evaluation.py \
   --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
   --output_dir train

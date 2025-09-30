@@ -86,7 +86,6 @@ class Evaluator:
         gen_kwargs = {
             "tokenizer": self.tokenizer,
             "stop_strings": ["[Question]"],
-            # "do_sample": False,
             "repetition_penalty": 1.0,
             "temperature": 0.2,
             "top_k": 20,
@@ -109,10 +108,10 @@ class Evaluator:
     def eval(self) -> None:
         eval_task = self.eval_args.task.split("_")[0]
         eval_split = self.eval_args.task.split("_")[1]
+        test_dir = self.eval_args.task_dir
 
         mapping = cached_file(
-            # path_or_repo_id=os.path.join(self.eval_args.task_dir, eval_task),
-            path_or_repo_id="evaluation/mmlucot",
+            path_or_repo_id= f"{test_dir}/{eval_task}",
             filename="mapping.json",
             cache_dir=self.model_args.cache_dir,
             token=self.model_args.hf_hub_token,
@@ -126,12 +125,10 @@ class Evaluator:
         results = {}
         for subject in pbar:
             dataset = load_dataset(
-            #     path=os.path.join(self.eval_args.task_dir, eval_task),
-            #     name=subject,
                 "json",
                 data_files={
-                    "train": f"evaluation/mmlucot/train/{subject}.jsonl",
-                    "test": f"evaluation/mmlucot/test/{subject}.jsonl"
+                    "train": f"{test_dir}/{eval_task}/{eval_split}/train/{subject}.jsonl",
+                    "test": f"{test_dir}/{eval_task}/{eval_split}/test/{subject}.jsonl"
                 },
                 cache_dir=self.model_args.cache_dir,
                 download_mode=self.eval_args.download_mode,
@@ -140,19 +137,19 @@ class Evaluator:
             )
             pbar.set_postfix_str(categorys[subject]["name"])
             inputs, outputs, labels = [], [], []
-            for i in trange(len(dataset[eval_split]), desc="Formatting batches", position=1, leave=False):
+            for i in trange(len(dataset["test"]), desc="Formatting batches", position=1, leave=False):
                 support_set = (
                     dataset["train"].shuffle().select(range(min(self.eval_args.n_shot, len(dataset["train"]))))
                 )
                 messages = self.eval_template.format_example(
-                    target_data=dataset[eval_split][i],
+                    target_data=dataset["test"][i],
                     support_set=support_set,
                     subject_name=categorys[subject]["name"],
                 )
 
                 input_ids, _ = self.template.encode_oneturn(tokenizer=self.tokenizer, messages=messages)
                 inputs.append({"input_ids": input_ids, "attention_mask": [1] * len(input_ids)})
-                labels.append(dataset[eval_split][i]['answer_idx'])
+                labels.append(dataset["test"][i]['answer_idx'])
 
                 if VERBOSE:
                     if i==0:
