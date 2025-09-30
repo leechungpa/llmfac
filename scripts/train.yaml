@@ -9,7 +9,7 @@ finetuning_type: lora
 # lora_target: q_proj,k_proj
 
 ### dataset
-dataset: mmlu_train_cot_s0
+# dataset: mmlu_train_cot_s0
 template: qwen
 cutoff_len: 32768 # Max position embeddings for Qwen2.5
 max_samples: 100000
@@ -37,7 +37,7 @@ ddp_timeout: 180000000
 resume_from_checkpoint: null
 
 # ## eval
-# eval_dataset: mmlu_test_s0
-# per_device_eval_batch_size: 4
+# eval_dataset: mmlu_test_cot_s0
+# per_device_eval_batch_size: 8
 # eval_strategy: steps
 # eval_steps: 50
