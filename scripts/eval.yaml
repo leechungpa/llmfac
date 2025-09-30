@@ -8,7 +8,7 @@
 finetuning_type: lora
 
 ### dataset
-task: mmlu_test # mmlu_test, ceval_validation, cmmlu_test
+# task: mmlucot_n1000
 task_dir: evaluation
 template: fewshot
 lang: en
