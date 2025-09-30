@@ -17,7 +17,7 @@ export CUDA_VISIBLE_DEVICES=0
 
 set -euo pipefail
 
-OUTDIR="./saves"
+OUTDIR="./results"
 model_name_or_path="Qwen/Qwen2.5-3B-Instruct" # "Qwen/Qwen2.5-7B-Instruct"
 
 max_samples=100
