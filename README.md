@@ -106,11 +106,11 @@ done
 ```bash
 python src/mmlucot/modify_jsonl_for_evaluation.py \
   --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
-  --output_dir train
+  --output_dir evaluation/mmlucot/n1000/train
 
 python src/mmlucot/modify_jsonl_for_evaluation.py \
   --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
-  --output_dir test
+  --output_dir evaluation/mmlucot/n1000/test
 ```
 
 ```bash
@@ -121,11 +121,11 @@ python src/mmlucot/subset_jsonl.py \
 
 python src/mmlucot/modify_jsonl_for_evaluation.py \
   --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
-  --output_dir train
+  --output_dir evaluation/mmlucot/n100/train
 
 python src/mmlucot/modify_jsonl_for_evaluation.py \
-  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
-  --output_dir test
+  --org_path data/mmlu/test_n100_seed0_cot.jsonl \
+  --output_dir evaluation/mmlucot/n100/test
 ```
 
 
