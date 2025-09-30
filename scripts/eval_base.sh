@@ -16,6 +16,6 @@ for shot in "${shots[@]}"; do
 llamafactory-cli eval scripts/eval.yaml \
     task="mmlucot_n${testset_size}" \
     model_name_or_path=$model_name_or_path \
-    save_dir="${OUTDIR}/eval/${model_name_or_path}/base/n${testset_size}_s${shot}" \
+    save_dir="${OUTDIR}_eval/${model_name_or_path}/base/n${testset_size}_s${shot}" \
     n_shot=$shot
 done
