@@ -10,7 +10,7 @@ OUTDIR="results"
 model_name_or_path="Qwen/Qwen2.5-3B-Instruct" # "Qwen/Qwen2.5-3B-Instruct"  "Qwen/Qwen2.5-7B-Instruct"
 suffix="all_r128_epoch6"
 
-testset_size=100
+testset_size=400
 shots=(0 5 10)
 
 mapfile -d '' ckpt_dirs < <(find "${OUTDIR}/${model_name_or_path}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)

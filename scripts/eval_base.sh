@@ -9,7 +9,7 @@ set -euo pipefail
 OUTDIR="results"
 model_name_or_path="Qwen/Qwen2.5-3B-Instruct" # "Qwen/Qwen2.5-3B-Instruct"  "Qwen/Qwen2.5-7B-Instruct"
 
-testset_size=100
+testset_size=400
 shots=(0 5 10)
 
 for shot in "${shots[@]}"; do
