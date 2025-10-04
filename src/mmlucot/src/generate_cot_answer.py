@@ -85,6 +85,7 @@ def generate_cot_answer(
     max_retries:int = 5,
     verbose: bool = False,
     return_log: bool = True,
+    remove_failed_case: bool = False,
 ):
     delay = 1.0 / max(rate_limit_per_sec, 1e-6)
 

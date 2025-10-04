@@ -22,16 +22,17 @@ def main():
 
             if failure_case is not None:
                 failure_cases.append(f"|{i}"+failure_case)
-
-            row = {
-                "subject": s.subject,
-                "category": s.category,
-                "question": s.question,
-                "choices": s.choices,
-                "answer_idx": s.answer_idx,
-                "cot_answer": cot_answer,
-            }
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            else:
+                # only write successful cases
+                row = {
+                    "subject": s.subject,
+                    "category": s.category,
+                    "question": s.question,
+                    "choices": s.choices,
+                    "answer_idx": s.answer_idx,
+                    "cot_answer": cot_answer,
+                }
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     print("=== Failure Cases ===")
     print("\n".join(failure_cases))

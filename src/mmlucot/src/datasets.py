@@ -122,4 +122,13 @@ def load_all_test_and_split(
 ) -> Tuple[List[Sample], List[Sample]]:
     ds = load_dataset("cais/mmlu", "all")["test"]
     samples = [norm_sample(x, SUBJECT_TO_CAT) for x in ds]
+
+    # remove duplicates (by subject + answer)
+    unique = {}
+    for s in samples:
+        key = (s.subject, s.choices[s.answer_idx])
+        if key not in unique:
+            unique[key] = s
+    samples = list(unique.values())
+    
     return split_balanced_by_category(samples, train_size, test_size, seed)
