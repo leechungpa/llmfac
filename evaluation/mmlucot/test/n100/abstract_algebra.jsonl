@@ -1,0 +1,1 @@
+{"subject": "abstract_algebra", "category": "STEM", "question": "The polynomial x^4 + 4 can be factored into linear factors in Z_5[x]. Find this factorization.", "choices": ["(x − 2)(x + 2)(x − 1)(x + 1)", "(x+1)^4", "(x-1)(x+1)^3", "(x-1)^3(x+1)"], "answer_idx": "A", "A": "(x − 2)(x + 2)(x − 1)(x + 1)", "B": "(x+1)^4", "C": "(x-1)(x+1)^3", "D": "(x-1)^3(x+1)"}
