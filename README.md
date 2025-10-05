@@ -35,22 +35,15 @@ python -c "import torch; print(torch.cuda.is_available())"
 # pip install -U datasets openai google-generativeai
 ```
 
-### Data Preparation
-
-Please refer to [data/README.md](data/README.md) for checking the details about the format of dataset files. You can use datasets on HuggingFace / ModelScope / Modelers hub, load the dataset in local disk, or specify a path to s3/gcs cloud storage.
-
-Please update `data/dataset_info.json` to use your custom dataset.
-
-
 ### MMLU Pipeline
 
 1. split datasets
 ```bash
 python3 src/mmlucot/download_dataset.py \
   --out_dir data/mmlu \
-  --train_size 1000 \
-  --test_size 1000 \
-  --seed 0
+  --train_size 10000 \
+  --test_size 5000 \
+  --seed 1234
 ```
 
 2. generate chain-of-thought answer
@@ -58,74 +51,63 @@ python3 src/mmlucot/download_dataset.py \
 export OPENAI_API_KEY= ######
 
 python src/mmlucot/generate_cot_dataset.py \
-  --org_path data/mmlu/train_n1000_seed0.jsonl \
-  --out_path data/mmlu/train_n1000_seed0_cot.jsonl \
-  --model gpt-4.1-mini
-
-python src/mmlucot/generate_cot_dataset.py \
-  --org_path data/mmlu/test_n1000_seed0.jsonl \
-  --out_path data/mmlu/test_n1000_seed0_cot.jsonl \
+  --org_path data/mmlu/train_n10000_seed1234.jsonl \
+  --out_path data/mmlu/train_n10000_seed1234_cot.jsonl \
   --model gpt-4.1-mini
 ```
 
 3. generate train datasets
 ```bash
-for n in {0..5}; do
-  python src/mmlucot/generate_fewshot_dataset.py \
-    --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
-    --org_is_cot \
-    --out_path "data/mmlu/cot/train_n1000_seed0_shot${n}.jsonl" \
-    --n_shots ${n} \
-    --seed 0
+for n in 1000 4000 8000; do
+python src/mmlucot/subset_jsonl.py \
+  --org_path data/mmlu/train_n9360_seed1234_cot.jsonl \
+  --out_path "data/mmlu/train_n${n}_seed1234_cot.jsonl" \
+  --subset_n ${n} \
+  --seed 1234
 done
 
-for n in {0..5}; do
+
+for n in 0 1 3 5 7 10; do
+python src/mmlucot/generate_fewshot_dataset.py \
+  --org_path data/mmlu/train_n1000_seed1234_cot.jsonl \
+  --org_is_cot \
+  --out_path "data/mmlu/cot/train_n1000_seed1234_cot_shot${n}.jsonl" \
+  --n_shots ${n} \
+  --seed 1234
+
 for cat in "STEM" "Social Sciences" "Humanities" "Other" ; do
-  python src/mmlucot/generate_fewshot_dataset.py \
-    --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
-    --org_is_cot \
-    --out_path "data/mmlu/cot/train_n1000_seed0_shot${n}_${cat}.jsonl" \
-    --n_shots ${n} \
-    --subset_category "${cat}" \
-    --seed 0
+python src/mmlucot/generate_fewshot_dataset.py \
+  --org_path data/mmlu/train_n4000_seed1234_cot.jsonl \
+  --org_is_cot \
+  --out_path "data/mmlu/cot/train_n4000_seed1234_cot_shot${n}_${cat}.jsonl" \
+  --n_shots ${n} \
+  --subset_category "${cat}" \
+  --seed 1234
 done
 done
 ```
 
 4. generate test dataset
-
 ```bash
-# python src/mmlucot/generate_fewshot_dataset.py \
-#   --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
-#   --org_is_cot \
-#   --out_path data/mmlu/cot/test_n1000_seed0_shot0.jsonl \
-#   --n_shots 0 \
-#   --seed 0
-```
+# shot examples from train dataset
+for n in 1000 4000; do
+  python src/mmlucot/modify_jsonl_for_evaluation.py \
+    --org_path "data/mmlu/train_n${n}_seed1234_cot.jsonl" \
+    --output_dir "evaluation/mmlucot/train/n${n}"
+done
 
-```bash
-python src/mmlucot/modify_jsonl_for_evaluation.py \
-  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
-  --output_dir evaluation/mmlucot/n1000/train
+# test datset
+for n in 100 200 500 1000 2000; do
+  python src/mmlucot/subset_jsonl.py \
+    --org_path data/mmlu/train_n9360_seed1234_cot.jsonl \
+    --out_path "data/mmlu/test_n${n}_seed1234_cot.jsonl" \
+    --subset_n "$n" \
+    --seed 1234
 
-python src/mmlucot/modify_jsonl_for_evaluation.py \
-  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
-  --output_dir evaluation/mmlucot/n1000/test
-```
-
-```bash
-python src/mmlucot/subset_jsonl.py \
-  --org_path data/mmlu/test_n1000_seed0_cot.jsonl \
-  --out_path data/mmlu/test_n100_seed0_cot.jsonl \
-  --subset_n 100 --seed 0
-
-python src/mmlucot/modify_jsonl_for_evaluation.py \
-  --org_path data/mmlu/train_n1000_seed0_cot.jsonl \
-  --output_dir evaluation/mmlucot/n100/train
-
-python src/mmlucot/modify_jsonl_for_evaluation.py \
-  --org_path data/mmlu/test_n100_seed0_cot.jsonl \
-  --output_dir evaluation/mmlucot/n100/test
+  python src/mmlucot/modify_jsonl_for_evaluation.py \
+    --org_path "data/mmlu/test_n${n}_seed1234_cot.jsonl" \
+    --output_dir "evaluation/mmlucot/test/n${n}"
+done
 ```
 
 
