@@ -85,7 +85,6 @@ def generate_cot_answer(
     max_retries:int = 5,
     verbose: bool = False,
     return_log: bool = True,
-    remove_failed_case: bool = False,
 ):
     delay = 1.0 / max(rate_limit_per_sec, 1e-6)
 
@@ -108,7 +107,7 @@ def generate_cot_answer(
         if verbose:
             print(f"[{attempt+1}try] pred({pred})!=true({true_answer})")
     else:
-        failure_case = f"|Failed| p:{pred} != t:{true_answer}\n"
+        failure_case = f"|Failed| p:{pred} != t:{true_answer}\n - Input: {user_prompt}\n - Output: {llm_output}"
         if verbose:
             print(failure_case)
 

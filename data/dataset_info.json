@@ -1,6 +1,6 @@
 {
   "mmlu_train_cot_s0": {
-    "file_name": "mmlu/cot/train_n1000_seed0_shot0.jsonl",
+    "file_name": "mmlu/cot/train_n1000_seed1234_cot_shot0.jsonl",
     "columns": {
       "query": "input",
       "response": "output",
@@ -8,15 +8,7 @@
     }
   },
   "mmlu_train_cot_s1": {
-    "file_name": "mmlu/cot/train_n1000_seed0_shot1.jsonl",
-    "columns": {
-      "query": "input",
-      "response": "output",
-      "system": "system"
-    }
-  },
-  "mmlu_train_cot_s2": {
-    "file_name": "mmlu/cot/train_n1000_seed0_shot2.jsonl",
+    "file_name": "mmlu/cot/train_n1000_seed1234_cot_shot1.jsonl",
     "columns": {
       "query": "input",
       "response": "output",
@@ -24,15 +16,7 @@
     }
   },
   "mmlu_train_cot_s3": {
-    "file_name": "mmlu/cot/train_n1000_seed0_shot3.jsonl",
-    "columns": {
-      "query": "input",
-      "response": "output",
-      "system": "system"
-    }
-  },
-  "mmlu_train_cot_s4": {
-    "file_name": "mmlu/cot/train_n1000_seed0_shot4.jsonl",
+    "file_name": "mmlu/cot/train_n1000_seed1234_cot_shot3.jsonl",
     "columns": {
       "query": "input",
       "response": "output",
@@ -40,15 +24,55 @@
     }
   },
   "mmlu_train_cot_s5": {
-    "file_name": "mmlu/cot/train_n1000_seed0_shot5.jsonl",
+    "file_name": "mmlu/cot/train_n1000_seed1234_cot_shot5.jsonl",
     "columns": {
       "query": "input",
       "response": "output",
       "system": "system"
     }
   },
-  "mmlu_test_s0": {
-    "file_name": "mmlu/cot/test_n1000_seed0_shot0.jsonl",
+  "mmlu_train_cot_s7": {
+    "file_name": "mmlu/cot/train_n1000_seed1234_cot_shot7.jsonl",
+    "columns": {
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "mmlu_train_cot_s10": {
+    "file_name": "mmlu/cot/train_n1000_seed1234_cot_shot10.jsonl",
+    "columns": {
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "mmlu_train_cot_s0_STEM": {
+    "file_name": "mmlu/cot/train_n4000_seed1234_cot_shot0_STEM.jsonl",
+    "columns": {
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "mmlu_train_cot_s5_STEM": {
+    "file_name": "mmlu/cot/train_n4000_seed1234_cot_shot5_STEM.jsonl",
+    "columns": {
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "mmlu_train_cot_s0_Humanities": {
+    "file_name": "mmlu/cot/train_n4000_seed1234_cot_shot0_Humanities.jsonl",
+    "columns": {
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "mmlu_train_cot_s5_Humanities": {
+    "file_name": "mmlu/cot/train_n4000_seed1234_cot_shot5_Humanities.jsonl",
     "columns": {
       "query": "input",
       "response": "output",

@@ -126,6 +126,8 @@ def load_all_test_and_split(
     # remove duplicates (by subject + answer)
     unique = {}
     for s in samples:
+        # ToDo. modify this if needed
+        # key = s.choices[s.answer_idx]
         key = (s.subject, s.choices[s.answer_idx])
         if key not in unique:
             unique[key] = s
