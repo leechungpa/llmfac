@@ -10,8 +10,8 @@ OUTDIR="results"
 model_name_or_path="Qwen/Qwen2.5-3B-Instruct" # "Qwen/Qwen2.5-3B-Instruct"  "Qwen/Qwen2.5-7B-Instruct"
 
 # train
-epochs_list=(6)
-ranks_list=(64)
+epochs_list=(6 10)
+ranks_list=(128)
 declare -A targets=(
   ["q_proj"]="q"
   ["k_proj"]="k"
@@ -23,7 +23,8 @@ declare -A targets=(
 )
 
 # evaluation
-testset_size=400
+trainset_size=1000
+testset_size=200
 shots=(0 5 10)
 
 
@@ -43,9 +44,9 @@ llamafactory-cli train scripts/train.yaml \
 
 for shot in "${shots[@]}"; do
 llamafactory-cli eval scripts/eval.yaml \
-    task="mmlucot_n${testset_size}" \
+    task="mmlucot_n${trainset_size}_n${testset_size}" \
     model_name_or_path="$model_name_or_path" \
-    adapter_name_or_path="${OUTDIR}/${model_name_or_path}/${suffix}" \
+    # adapter_name_or_path="${OUTDIR}/${model_name_or_path}/${suffix}" \
     save_dir="${OUTDIR}_eval/${model_name_or_path}/${suffix}/n${testset_size}_s${shot}" \
     n_shot=$shot
 done

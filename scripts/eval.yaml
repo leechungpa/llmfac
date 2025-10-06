@@ -21,4 +21,4 @@ max_samples: 100000
 # save_dir: results/llama3-8b/lora/eval
 
 ### eval
-# batch_size: 4
+batch_size: 8
