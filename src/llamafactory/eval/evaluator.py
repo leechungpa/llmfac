@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 VERBOSE = False
+NUM_RETURN_SEQUENCES = 10
 
 class Evaluator:
     def __init__(self, args: Optional[dict[str, Any]] = None) -> None:
@@ -85,29 +86,39 @@ class Evaluator:
     def batch_inference(self, batch_input: dict[str, "torch.Tensor"]) -> list[str]:
         gen_kwargs = {
             "tokenizer": self.tokenizer,
-            "stop_strings": ["[Question]"],
+            "stop_strings": ["[Question]", "Answer: A", "Answer: B", "Answer: C", "Answer: D"],
             "repetition_penalty": 1.0,
             "temperature": 0.2,
             "top_k": 20,
             "top_p": 0.95,
+            "num_return_sequences": NUM_RETURN_SEQUENCES,
+            "do_sample": True,
         }
 
+        batch_size = batch_input["input_ids"].shape[0]
         input_len = batch_input["input_ids"].shape[1]
         gen_kwargs["max_length"] = input_len+2000
 
         gen_ids = self.model.generate(**batch_input, **gen_kwargs)
-        texts = [self.tokenizer.decode(ids[input_len:], skip_special_tokens=True) for ids in gen_ids]
+        grouped = [
+            gen_ids[i*gen_kwargs["num_return_sequences"]:(i+1)*gen_kwargs["num_return_sequences"]] for i in range(batch_size)
+        ]
+        texts = [
+            [self.tokenizer.decode(ids[input_len:], skip_special_tokens=True) for ids in group]
+            for group in grouped
+        ]
 
         if VERBOSE:
             print("[----output----]")
-            for text in texts:
-                print(text)
-                print("---------")
-        return [self._parse_answer(text) for text in texts]
+            for gi, group in enumerate(texts):
+                print(f"[sample {gi}]")
+                for t in group:
+                    print(t); print("---------")
+
+        return [[self._parse_answer(t) for t in group] for group in texts]
 
     def eval(self) -> None:
-        eval_task = self.eval_args.task.split("_")[0]
-        eval_split = self.eval_args.task.split("_")[1]
+        eval_task, train_split, eval_split = self.eval_args.task.split("_")
         test_dir = self.eval_args.task_dir
 
         mapping = cached_file(
@@ -127,8 +138,8 @@ class Evaluator:
             dataset = load_dataset(
                 "json",
                 data_files={
-                    "train": f"{test_dir}/{eval_task}/{eval_split}/train/{subject}.jsonl",
-                    "test": f"{test_dir}/{eval_task}/{eval_split}/test/{subject}.jsonl"
+                    "train": f"{test_dir}/{eval_task}/train/{train_split}/{subject}.jsonl",
+                    "test": f"{test_dir}/{eval_task}/test/{eval_split}/{subject}.jsonl"
                 },
                 cache_dir=self.model_args.cache_dir,
                 download_mode=self.eval_args.download_mode,
@@ -166,16 +177,21 @@ class Evaluator:
                 batch_input = self.tokenizer.pad(
                     inputs[i : i + self.eval_args.batch_size], return_attention_mask=True, return_tensors="pt"
                 ).to(self.model.device)
-                preds = self.batch_inference(batch_input)
+                pred_groups = self.batch_inference(batch_input)
+
+
+                for j, preds in enumerate(pred_groups):
+                    label = labels[i + j]
+                    acc = float(np.mean([p == label for p in preds]))
+                    outputs.append(acc)
 
                 if VERBOSE:
-                    print("[----pred----]")
-                    print(preds, labels[i:i + self.eval_args.batch_size])
-                    print(np.array(preds) == np.array(labels[i:i + self.eval_args.batch_size]))
+                    print("[----acc per sample----]")
+                    print(pred_groups, labels[i:i + self.eval_args.batch_size])
+                    print(outputs[-len(pred_groups):])
                     print("[--------------]")
-                outputs += preds
 
-            corrects = np.array(outputs) == np.array(labels)
+            corrects = np.array(outputs, dtype=float)
             category_name = categorys[subject]["category"]
             category_corrects[category_name] = np.concatenate([category_corrects[category_name], corrects], axis=0)
             category_corrects["Average"] = np.concatenate([category_corrects["Average"], corrects], axis=0)

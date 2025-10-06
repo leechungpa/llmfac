@@ -99,13 +99,13 @@ done
 # test datset
 for n in 100 200 500 1000 2000; do
   python src/mmlucot/subset_jsonl.py \
-    --org_path data/mmlu/train_n9360_seed1234_cot.jsonl \
-    --out_path "data/mmlu/test_n${n}_seed1234_cot.jsonl" \
+    --org_path data/mmlu/test_n2309_seed1234.jsonl \
+    --out_path "data/mmlu/test_n${n}_seed1234.jsonl" \
     --subset_n "$n" \
     --seed 1234
 
   python src/mmlucot/modify_jsonl_for_evaluation.py \
-    --org_path "data/mmlu/test_n${n}_seed1234_cot.jsonl" \
+    --org_path "data/mmlu/test_n${n}_seed1234.jsonl" \
     --output_dir "evaluation/mmlucot/test/n${n}"
 done
 ```
