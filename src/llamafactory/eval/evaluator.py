@@ -203,7 +203,7 @@ class Evaluator:
     def _save_results(self, category_corrects: dict[str, "NDArray"], results: dict[str, dict[int, str]]) -> None:
         score_info = "\n".join(
             [
-                f"{category_name:>15}: {100 * np.mean(category_correct):.2f}"
+                f"{category_name:>15}: {100 * np.mean(category_correct):.2f}\n{category_name:>15}_std: {100 * np.std(category_correct):.2f}"
                 for category_name, category_correct in category_corrects.items()
                 if len(category_correct)
             ]
