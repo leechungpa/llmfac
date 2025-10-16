@@ -47,13 +47,13 @@ llamafactory-cli train "$train_yaml" \
 
 ##################################################
 # Evaluation
-mapfile -d '' ckpt_dirs < <(find "${MODEL_OUTDIR}/log/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
+mapfile -d '' ckpt_dirs < <(find "${MODEL_OUTDIR}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
 
 for shot in "${shots[@]}"; do
     llamafactory-cli eval "$eval_yaml" \
         model_name_or_path="$model_name" \
         task="${test_dataset}" \
-        save_dir="${EVAL_OUTDIR}/${suffix}/checkpoint-0-n${testset_size}_s${shot}" \
+        save_dir="${EVAL_OUTDIR}/${suffix}/log/checkpoint-0-n${testset_size}_s${shot}" \
         n_shot=$shot
 
     for ckpt in "${ckpt_dirs[@]}"; do
