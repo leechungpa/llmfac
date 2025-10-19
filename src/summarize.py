@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""
-Summarize results: per-shot lines + mean±std band plots.
-
-Reads `results.log` files under checkpoint folders like:
-  checkpoint-<CKPT>-n<...>_s<SHOT>
-
-Outputs go to a user-specified directory (--out_dir), containing:
-- CSV summary
-- *_lines.png : original line plot (first version)
-- *_band.png  : mean±std band plot (updated version)
-"""
-
 import os
 import re
 import sys
@@ -19,146 +7,112 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 FOLDER_RE = re.compile(r"checkpoint-(?P<ckpt>\d+)-n\d+_s(?P<shot>\d+)$")
-METRICS = ["Average", "STEM", "Social Sciences", "Humanities", "Other"]
-COLOR_MAP = {0: "C0", 5: "C1", 10: "C2"}
+NUM_RE = re.compile(r"([-+]?[0-9]*\.?[0-9]+)")
+BASE_METRICS = ["Average", "STEM", "Social Sciences", "Humanities", "Other"]
+CANONICAL_METRICS = BASE_METRICS + [m + "_std" for m in BASE_METRICS]
 
-def extract_score(line: str):
-    m = re.search(r"([-+]?[0-9]*\.?[0-9]+)", line)
-    return float(m.group(1)) if m else None
 
-def parse_results_log(path: str):
-    metrics = {m: None for m in METRICS}
+def _norm(s): return re.sub(r"\s+", "_", s).lower()
+
+NORM_TO_CANON = {}
+for m in CANONICAL_METRICS:
+    NORM_TO_CANON[_norm(m)] = m
+    NORM_TO_CANON[_norm(m).replace("_", " ")] = m
+
+def get_color(shot, max_shot, cmap="tab20"):
+    cmap = plt.get_cmap(cmap)
+    return cmap(shot / max_shot) if max_shot else cmap(0)
+
+def parse_results_log(path):
     if not os.path.isfile(path):
         return None
+    vals = {m: None for m in CANONICAL_METRICS}
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        for raw in f:
-            line = raw.strip()
-            if line.startswith("Average:"):
-                metrics["Average"] = extract_score(line)
-            elif line.startswith("STEM:"):
-                metrics["STEM"] = extract_score(line)
-            elif line.startswith("Social Sciences:"):
-                metrics["Social Sciences"] = extract_score(line)
-            elif line.startswith("Humanities:"):
-                metrics["Humanities"] = extract_score(line)
-            elif line.startswith("Other:"):
-                metrics["Other"] = extract_score(line)
-    if all(v is None for v in metrics.values()):
-        return None
-    return metrics
+        for line in f:
+            m = re.match(r"^\s*([^:]+)\s*:\s*([-+]?[0-9]*\.?[0-9]+)", line)
+            if not m:
+                continue
+            label, num = m.group(1).strip(), m.group(2)
+            canon = NORM_TO_CANON.get(_norm(label))
+            if canon:
+                try:
+                    vals[canon] = float(num)
+                except ValueError:
+                    vals[canon] = None
+    return None if all(v is None for v in vals.values()) else vals
 
-def make_dataframe(base_dir: str) -> pd.DataFrame:
+def make_dataframe(base_dir):
     rows = []
-
     for name in sorted(os.listdir(base_dir)):
         full = os.path.join(base_dir, name)
         if not os.path.isdir(full):
             continue
-        m = FOLDER_RE.match(name)
-        if not m:
+        mo = FOLDER_RE.match(name)
+        if not mo:
             continue
-        ckpt = int(m.group("ckpt"))
-        shot = int(m.group("shot"))
-        log_path = os.path.join(full, "results.log")
-        parsed = parse_results_log(log_path)
+        parsed = parse_results_log(os.path.join(full, "results.log"))
         if parsed is None:
             continue
-        row = {"checkpoint": ckpt, "shot": shot, "folder": name}
-        row.update(parsed)
-        rows.append(row)
+        rows.append({"checkpoint": int(mo.group("ckpt")), "shot": int(mo.group("shot")), "folder": name, **parsed})
     if not rows:
-        print("ERROR: No results found.", file=sys.stderr)
-        sys.exit(2)
-    df = pd.DataFrame(rows).sort_values(["shot", "checkpoint"]).reset_index(drop=True)
-    return df
+        print("ERROR: No results found.", file=sys.stderr); sys.exit(2)
+    return pd.DataFrame(rows).sort_values(["shot", "checkpoint"]).reset_index(drop=True)
 
-def plot_lines(metric_name: str, df: pd.DataFrame, out_path: str):
+def plot_lines(metric, df, out, max_shot):
+    if metric not in df.columns:
+        return
     plt.figure()
     for shot, sub in df.groupby("shot"):
         sub = sub.sort_values("checkpoint")
-        plt.plot(
-            sub["checkpoint"],
-            sub[metric_name],
-            marker="o",
-            label=f"{shot}-shot",
-            color=COLOR_MAP.get(int(shot), None),
-        )
-    plt.xlabel("checkpoint")
-    plt.ylabel("accuracy")
-    plt.title(metric_name)
-    plt.legend()
-    plt.grid(True, linestyle=":")
-    plt.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close()
+        plt.plot(sub["checkpoint"], sub[metric], marker="o", label=f"{shot}-shot", color=get_color(shot, max_shot))
+    plt.xlabel("checkpoint"); plt.ylabel("accuracy"); plt.title(metric); plt.legend(); plt.grid(True, ls=":"); plt.tight_layout()
+    plt.savefig(out, bbox_inches="tight"); plt.close()
 
-def plot_mean_std_band(metric_name: str, df: pd.DataFrame, out_path: str, window: int = 5):
+def plot_mean_std_band(metric, df, out, max_shot, window=3):
+    if metric not in df.columns:
+        return
     plt.figure()
     for shot, sub in df.groupby("shot"):
-        agg = (
-            sub.groupby("checkpoint")[metric_name]
-            .agg(["mean", "std"])
-            .sort_index()
-            .rename(columns={"mean": "mu", "std": "sigma"})
-        )
+        agg = sub.groupby("checkpoint")[metric].agg(["mean", "std"]).rename(columns={"mean":"mu","std":"sigma"}).sort_index()
         xs = agg.index.values
         mu = agg["mu"].values
-        sigma = agg["sigma"].fillna(0.0).values
+        sigma = agg["sigma"].fillna(0).values
         if window and window > 1:
             mu = pd.Series(mu).rolling(window=window, center=True).mean().to_numpy()
             sigma = pd.Series(sigma).rolling(window=window, center=True).mean().to_numpy()
-        c = COLOR_MAP.get(int(shot), None)
+        c = get_color(shot, max_shot)
         plt.plot(xs, mu, lw=2.5, label=f"{shot}-shot", color=c)
         plt.fill_between(xs, mu - sigma, mu + sigma, alpha=0.2, color=c)
-    plt.xlabel("checkpoint")
-    plt.ylabel("accuracy")
-    title = f"{metric_name}" + (f" (smoothed w={window})" if window and window > 1 else "")
-    plt.title(title)
-    plt.legend()
-    plt.grid(True, linestyle=":")
-    plt.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close()
+    plt.xlabel("checkpoint"); plt.ylabel("accuracy")
+    title = f"{metric}" + (f" (smoothed w={window})" if window and window > 1 else "")
+    plt.title(title); plt.legend(); plt.grid(True, ls=":"); plt.tight_layout()
+    plt.savefig(out, bbox_inches="tight"); plt.close()
 
 def main():
-    p = argparse.ArgumentParser(description="Summarize Qwen results and produce two plot types.")
-    p.add_argument(
-        "--base_dir",
-        type=str,
-        required=True,
-        help="Directory containing checkpoint-* subfolders with results.log files",
-    )
-    p.add_argument(
-        "--out_dir",
-        type=str,
-        default="plots",
-    )
-    p.add_argument("--smooth_window_band", type=int, default=5)
+    p = argparse.ArgumentParser(description="Summarize results and produce plots.")
+    p.add_argument("--base_dir", type=str, required=True, help="Directory with checkpoint-* subfolders")
+    p.add_argument("--output_dir", type=str, default="plots")
+    p.add_argument("--smooth_window_band", type=int, default=3)
     args = p.parse_args()
 
-    base_dir = args.base_dir
-    out_dir = args.out_dir
-    os.makedirs(out_dir, exist_ok=True)
+    if not os.path.isdir(args.base_dir):
+        print(f"ERROR: Base directory not found: {args.base_dir}", file=sys.stderr); sys.exit(1)
+    os.makedirs(args.output_dir, exist_ok=True)
 
-    if not os.path.isdir(base_dir):
-        print(f"ERROR: Base directory not found: {base_dir}", file=sys.stderr)
-        sys.exit(1)
+    df = make_dataframe(args.base_dir)
+    df.to_csv(os.path.join(args.output_dir, "results.csv"), index=False)
 
-    df = make_dataframe(base_dir)
-    csv_path = os.path.join(out_dir, "results_summary.csv")
-    df.to_csv(csv_path, index=False)
-    print(f"Saved table to: {csv_path}")
+    max_shot = int(df["shot"].max()) if not df["shot"].isnull().all() else 0
 
-    for metric in METRICS:
-        base_name = metric.replace(" ", "_").lower()
-        out_lines = os.path.join(out_dir, f"{base_name}.png")
-        out_band = os.path.join(out_dir, f"banded_{base_name}.png")
-        plot_lines(metric, df, out_lines)
-        plot_mean_std_band(metric, df, out_band, window=args.smooth_window_band)
-        print(f"Saved: {out_lines}, {out_band}")
+    for metric in BASE_METRICS:
+        base_name = metric.replace(" ", "_")
+        out_lines = os.path.join(args.output_dir, f"{base_name}.png")
+        out_band = os.path.join(args.output_dir, f"banded_{base_name}.png")
+        plot_lines(metric, df, out_lines, max_shot)
+        plot_mean_std_band(metric, df, out_band, max_shot, window=args.smooth_window_band)
 
     with pd.option_context("display.width", 120, "display.max_columns", None):
-        print(df.head(10))
+        print(df.head(20))
 
 if __name__ == "__main__":
     main()
