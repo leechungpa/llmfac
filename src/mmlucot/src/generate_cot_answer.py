@@ -1,7 +1,6 @@
 import os
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed  # 추가
 
 from . import LETTER, SYSTEM_PROMPT_BASE
 from .datasets import Sample
@@ -119,41 +118,3 @@ def generate_cot_answer(
         return llm_output, failure_case
     else:
         return llm_output
-
-
-# 병렬 처리 추가: samples 리스트를 받아 동시에 실행
-def generate_cot_answers(
-    samples: list[Sample],
-    model_name: str = "gpt-4.1-mini",
-    rate_limit_per_sec: float = 8.0,   # 워커 수 추정에 사용. 계정 한도에 맞게 조정
-    max_workers: int | None = None,    # 명시 시 우선
-    max_retries: int = 5,
-    verbose: bool = False,
-    return_log: bool = True,
-):
-    workers = max_workers or max(1, int(rate_limit_per_sec))
-
-    def _one(s: Sample):
-        # 기존 단일 함수 재사용. 딜레이가 있으니 rate_limit_per_sec를 충분히 크게 설정.
-        return generate_cot_answer(
-            s,
-            model_name=model_name,
-            rate_limit_per_sec=rate_limit_per_sec,
-            max_retries=max_retries,
-            verbose=verbose,
-            return_log=return_log,
-        )
-
-    results = [None] * len(samples)
-    failures = []
-
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        fut2idx = {ex.submit(_one, s): i for i, s in enumerate(samples)}
-        for fut in as_completed(fut2idx):
-            i = fut2idx[fut]
-            out, fail = fut.result()
-            results[i] = out
-            if fail:
-                failures.append((i, fail))
-
-    return results, failures
