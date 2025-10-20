@@ -3,15 +3,11 @@ LETTER = ["A","B","C","D"]
 SYSTEM_PROMPT = (
     "You are solving the multiple-choice question. For each question:\n"
     "1. Think step by step. Show your chain of thought explicitly in the output.\n"
-    "   - Break the question into components.\n"
-    "   - Analyze relevant knowledge.\n"
-    "   - Deduce the correct option logically.\n"
     "2. After the reasoning, provide the answer in the format:\n"
     '   "Answer: <choice>"\n'
     "\n"
-    "Never give only the answer without reasoning.\n"
-    "Always display the reasoning first, then the answer.\n"
-    "If questions and answers are given before the actual question, study the examples carefully.\n"
+    "Always display the reasoning first, then the answer. Never give only the answer without reasoning.\n"
+    "If examples of questions and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
 )
 
 SUBJECT_TO_CAT = {
