@@ -1,13 +1,12 @@
 LETTER = ["A","B","C","D"]
 
-SYSTEM_PROMPT = (
+SYSTEM_PROMPT_BASE = (
     "You are solving the multiple-choice question. For each question:\n"
-    "1. Think step by step. Show your chain of thought explicitly in the output.\n"
-    "2. After the reasoning, provide the answer in the format:\n"
-    '   "Answer: <choice>"\n'
-    "\n"
-    "Always display the reasoning first, then the answer. Never give only the answer without reasoning.\n"
-    "If examples of questions and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
+    "1. Show your reasoning first, then give the final answer on a new line in this format: 'Answer: <choice>', where <choice> is one of A, B, C, or D."
+)
+
+SYSTEM_PROMPT = SYSTEM_PROMPT_BASE + (
+    "\n2. If examples of questions and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
 )
 
 SUBJECT_TO_CAT = {
