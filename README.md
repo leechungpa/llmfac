@@ -69,7 +69,7 @@ python src/mmlucot/subset_jsonl.py \
   --seed $seed
 done
 
-for n in 0 1 3 5 7 10; do
+for n in 0 1 3 5; do
 python src/mmlucot/generate_fewshot_dataset.py \
   --org_path "data/mmlu/train_n1000_seed${seed}_cot.jsonl" \
   --org_is_cot \
@@ -80,7 +80,7 @@ for cat in "STEM" "Social Sciences" "Humanities" "Other" ; do
 python src/mmlucot/generate_fewshot_dataset.py \
   --org_path "data/mmlu/train_n4000_seed${seed}_cot.jsonl" \
   --org_is_cot \
-  --out_path "data/mmlu/cot/train_n4000_seed${seed}_cot_shot${n}_${cat}.jsonl" \
+  --out_path "data/mmlu/cot/train_n1000_seed${seed}_cot_shot${n}_${cat}.jsonl" \
   --n_shots ${n} \
   --subset_category "${cat}" \
   --seed $seed
@@ -107,7 +107,7 @@ for n in 1000 4000; do
 done
 
 # test datset
-for n in 100 200 500 1000 2000; do
+for n in 500 1000 2000; do
   python src/mmlucot/subset_jsonl.py \
     --org_path "data/mmlu/test_n2328_seed${seed}.jsonl" \
     --out_path "data/mmlu/test_n${n}_seed${seed}.jsonl" \
