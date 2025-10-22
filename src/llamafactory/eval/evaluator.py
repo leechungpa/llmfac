@@ -52,8 +52,7 @@ from ..data import get_template_and_fix_tokenizer
 from ..extras.constants import CHOICES, SUBJECTS
 from ..hparams import get_eval_args
 from ..model import load_model, load_tokenizer
-from .template import get_eval_template
-
+from .template import get_eval_template, count_words
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -75,9 +74,12 @@ class Evaluator:
     def _parse_answer(self, text: str) -> str:
         try:
             for line in reversed(text.splitlines()):
-                match = re.match(r"^\s*Answer\s*:\s*([A-D])", line, flags=re.IGNORECASE)
+                match = re.match(r"^\s*(?:Answer|Alphabets)\s*:\s*([A-D]|\d+)", line, flags=re.IGNORECASE)
                 if match:
-                    return match.group(1)
+                    if self.eval_args.lang == "count_words":
+                        return int(match.group(1))
+                    else:
+                        return match.group(1)
             return None
         except Exception:
             return None
@@ -86,9 +88,9 @@ class Evaluator:
     def batch_inference(self, batch_input: dict[str, "torch.Tensor"]) -> list[str]:
         gen_kwargs = {
             "tokenizer": self.tokenizer,
-            "stop_strings": ["[Question]", "Answer: A", "Answer: B", "Answer: C", "Answer: D"],
+            "stop_strings": ["[Question]", "[Query]", "Answer: A", "Answer: B", "Answer: C", "Answer: D"],
             "repetition_penalty": 1.0,
-            "temperature": 0.2,
+            "temperature": self.eval_temperature,
             "top_k": 20,
             "top_p": 0.95,
             "num_return_sequences": NUM_RETURN_SEQUENCES,
@@ -118,7 +120,9 @@ class Evaluator:
         return [[self._parse_answer(t) for t in group] for group in texts]
 
     def eval(self) -> None:
-        eval_task, train_split, eval_split = self.eval_args.task.split("_")
+        eval_task, train_split, eval_split, eval_temperature = self.eval_args.task.split("_")
+        self.eval_temperature = int(eval_temperature[1:]) / 100
+
         test_dir = self.eval_args.task_dir
 
         mapping = cached_file(
@@ -130,6 +134,9 @@ class Evaluator:
 
         with open(mapping, encoding="utf-8") as f:
             categorys: dict[str, dict[str, str]] = json.load(f)
+
+        # if self.eval_args.lang == "count_words":
+        #     categorys = {k: v for k, v in categorys.items() if v['category'] in ["Humanities", "Social Sciences", "Other"]}
 
         category_corrects = {subj: np.array([], dtype="bool") for subj in SUBJECTS}
         pbar = tqdm(categorys.keys(), desc="Processing subjects", position=0)
@@ -155,12 +162,16 @@ class Evaluator:
                 messages = self.eval_template.format_example(
                     target_data=dataset["test"][i],
                     support_set=support_set,
-                    subject_name=categorys[subject]["name"],
                 )
 
                 input_ids, _ = self.template.encode_oneturn(tokenizer=self.tokenizer, messages=messages)
                 inputs.append({"input_ids": input_ids, "attention_mask": [1] * len(input_ids)})
-                labels.append(dataset["test"][i]['answer_idx'])
+                if self.eval_args.lang == "en":
+                    labels.append(dataset["test"][i]['answer_idx'])
+                elif self.eval_args.lang == "count_words":
+                    labels.append(count_words(dataset['test'][i]['question']))
+                # elif self.eval_args.lang == "count_alphabets":
+                #     labels.append(len(re.findall(r'[A-Za-z]', dataset['test'][i]['question'])))
 
                 if VERBOSE:
                     if i==0:
@@ -182,7 +193,10 @@ class Evaluator:
 
                 for j, preds in enumerate(pred_groups):
                     label = labels[i + j]
-                    acc = float(np.mean([p == label for p in preds]))
+                    if self.eval_args.lang == "en":
+                        acc = float(np.mean([p == label for p in preds]) > 0.5)
+                    elif self.eval_args.lang == "count_words":
+                        acc = float(np.mean([p == label for p in preds]))
                     outputs.append(acc)
 
                 if VERBOSE:
