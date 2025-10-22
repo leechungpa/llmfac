@@ -1,17 +1,3 @@
-# Copyright 2025 the LlamaFactory team.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import re
 
 from dataclasses import dataclass
@@ -22,35 +8,24 @@ from ..extras.constants import CHOICES
 
 SYSTEM_PROMPT = (
     "You are solving the multiple-choice question. For each question:\n"
-    "1. Think step by step. Show your chain of thought explicitly in the output.\n"
-    "2. After the reasoning, provide the answer in the format:\n"
-    '   "Answer: <choice>"\n'
-    "\n"
-    "Always display the reasoning first, then the answer. Never give only the answer without reasoning.\n"
-    "If examples of questions and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
+    "- Show your reasoning first, then give the final answer on a new line in this format: 'Answer: <choice>', where <choice> is one of A, B, C, or D.\n"
+    "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
     "\n"
 )
-
-# SYSTEM_PROMPT = (
-#     "You are solving the multiple-choice question. For each question:\n"
-#     "- Show your reasoning first, then give the final answer on a new line in this format: 'Answer: <choice>', where <choice> is one of A, B, C, or D.\n"
-#     "- If sample queries and answers are provided, follow their structure, reasoning style, and level of detail closely.\n"
-#     "\n"
-# )
 
 # SYSTEM_PROMPT_COUNT_ALPHABETS = (
 #     "You are analyzing text statistics. For each question:\n"
 #     "- Read the text following 'Question:'. Count only the alphabetic characters (A–Z, a–z) in that text.\n"
 #     "- Give the final answer on a new line in this format: 'Answer: <number>', where <number> is the count of alphabetic characters.\n"
-#     "- If sample queries and answers are provided, follow their structure, reasoning style, and level of detail closely.\n"
+#     "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
 #     "\n"
 # )
 
 SYSTEM_PROMPT_COUNT_WORDS = (
     "You are analyzing text statistics. For each question:\n"
     "- Read the text following 'Question:'. Count the number of words in that text.\n"
-    "- Give the final answer on a new line in this format: 'Answer: <number>', where <number> is the count of alphabetic characters.\n"
-    "- If sample queries and answers are provided, follow their structure, reasoning style, and level of detail closely.\n"
+    "- Give the final answer on a new line in this format: 'Answer: <number>', where <number> is the count of words.\n"
+    "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
     "\n"
 )
 
@@ -68,7 +43,7 @@ class EvalTemplate:
     def _parse_example(self, example: dict[str, str]) -> tuple[str, str]:
         if self.name == "en":
             prompt = (
-                "[Question]\n" # Change to [Query]
+                "[Query]\n" # Change to [Query]
                 + "Subject: " + example["subject"].replace("_", " ") + ".\n"
                 + "Question: " + example["question"] + "\n"
                 + "".join(f"{choice}) {example[choice]}\n" for choice in CHOICES if choice in example)

@@ -47,6 +47,7 @@ import torch
 from datasets import load_dataset
 from tqdm import tqdm, trange
 from transformers.utils import cached_file
+from prettytable import PrettyTable
 
 from ..data import get_template_and_fix_tokenizer
 from ..extras.constants import CHOICES, SUBJECTS
@@ -119,7 +120,19 @@ class Evaluator:
 
         return [[self._parse_answer(t) for t in group] for group in texts]
 
+    def _print_args(self) -> None:
+        table = PrettyTable()
+        table.field_names = ["Argument", "Value"]
+        for key, value in vars(self.eval_args).items():
+            if value is not None:
+                table.add_row([key, value])
+        for key, value in vars(self.data_args).items():
+            if value is not None:
+                table.add_row([key, value])
+        print(table)
+
     def eval(self) -> None:
+        self._print_args()
         eval_task, train_split, eval_split, eval_temperature = self.eval_args.task.split("_")
         self.eval_temperature = int(eval_temperature[1:]) / 100
 

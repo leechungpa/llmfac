@@ -2,11 +2,12 @@ LETTER = ["A","B","C","D"]
 
 SYSTEM_PROMPT_BASE = (
     "You are solving the multiple-choice question. For each question:\n"
-    "1. Show your reasoning first, then give the final answer on a new line in this format: 'Answer: <choice>', where <choice> is one of A, B, C, or D."
+    "- Show your reasoning first, then give the final answer on a new line in this format: 'Answer: <choice>', where <choice> is one of A, B, C, or D.\n"
 )
 
 SYSTEM_PROMPT = SYSTEM_PROMPT_BASE + (
-    "\n2. If examples of questions and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
+    "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
+    "\n"
 )
 
 SUBJECT_TO_CAT = {

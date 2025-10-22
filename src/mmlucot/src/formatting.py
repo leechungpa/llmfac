@@ -22,12 +22,11 @@ def make_record(
     shots: List[Sample|SampleCoT],
     with_cot_answer: bool,
     system_msg: str,
-    # instruction_msg: str,
 ) -> Dict:
     input_msg_parts = []
     for ex in shots:
-        input_msg_parts.append(f"[Question]\n" + render_qa(ex, with_answer=True, with_cot_answer=with_cot_answer))
-    input_msg_parts.append("[Question]\n" + render_qa(target, with_answer=False, with_cot_answer=with_cot_answer))
+        input_msg_parts.append(f"[Query]\n" + render_qa(ex, with_answer=True, with_cot_answer=with_cot_answer))
+    input_msg_parts.append("[Query]\n" + render_qa(target, with_answer=False, with_cot_answer=with_cot_answer))
     input_msg = "\n\n".join(input_msg_parts)
 
     if with_cot_answer:
@@ -37,7 +36,6 @@ def make_record(
 
     return {
         "system": system_msg,
-        # "instruction": instruction_msg,
         "input": input_msg,
         "output": output_msg,
     }
@@ -50,7 +48,6 @@ def make_jsonl(
     subset_category: None|str = None,
     seed: int = 0,
 ) -> Iterable[Dict]:
-    # system_msg, instruction_msg = SYSTEM_PROMPT.split("\n", 1)
     random.seed(seed)
     for t in dataset:
         if (subset_category is None) or (t.category == subset_category):
@@ -65,5 +62,4 @@ def make_jsonl(
                 random.shuffle(pool)
                 shots = pool[: min(n_shots, len(pool))]
 
-            # yield make_record(t, shots, with_cot_answer, system_msg, instruction_msg)
             yield make_record(t, shots, with_cot_answer, SYSTEM_PROMPT)
