@@ -1,3 +1,5 @@
+# !/usr/bin/env bash
+
 username=$(whoami)
 
 export HF_HOME="/data/${username}/hf"
@@ -8,69 +10,118 @@ export CUDA_VISIBLE_DEVICES=0
 
 set -euo pipefail
 
-model_name="Qwen/Qwen2.5-3B-Instruct" # "Qwen/Qwen2.5-3B-Instruct"  "Qwen/Qwen2.5-7B-Instruct"
+##################################################
+# model
+model_name="Qwen/Qwen2.5-3B-Instruct" # 3B 7B 1.5B
+# model_name="meta-llama/Llama-3.2-3B-Instruct"
+# model_name="meta-llama/Llama-3.1-8B-Instruct"
 
+##################################################
 # train
 train_yaml="scripts/train.yaml"
-epochs=1
+epochs=3
 rank=128
-target="all" # "q_proj,k_proj,v_proj"
-target_name="all" # "qkv"
+lr=1.0e-5
 
-category="STEM" # "Humanities"
+# target="all"
+# target_name="all"
+target="q_proj,k_proj,v_proj"
+target_name="qkv"
+# target="v_proj"
+# target_name="v"
+# target="q_proj"
+# target_name="q"
+# target="k_proj"
+# target_name="k"
 
+# category="STEM"
+category="Humanities"
+
+##################################################
 # evaluation
 eval_yaml="scripts/eval.yaml"
 trainset_size=1000
-testset_size=200
-shots=(10 5 0)
+testset_size=1000
+shots="5 0 3 1 7"
+temperature=0.05
+eval_seed=0
 
+##################################################
 # dataset
-train_dataset="mmlu_train_cot_s0_${category}"
-test_dataset="mmlucot_n${trainset_size}_n${testset_size}"
+train_dataset="mmlucot_train_n${trainset_size}_s0_${category}"
+test_dataset="mmlucot_n${trainset_size}_n${testset_size}_t${temperature}"
 
-# Directories
-MODEL_OUTDIR="/data/${username}/results/${category}"
-EVAL_OUTDIR="/home/${username}/llmfac/results/${category}"
-suffix="${target_name}_r${rank}_epoch${epochs}"
+# directories
+suffix="${model_name}/${category}/epoch${epochs}_lr${lr}_${target_name}_r${rank}"
 
+model_dir="/data/${username}/llmfac/results"
+eval_dir="/home/${username}/llmfac/results_eval"
 
 ##################################################
 # Train
 llamafactory-cli train "$train_yaml" \
   model_name_or_path="$model_name" \
   num_train_epochs="$epochs" \
+  learning_rate="$lr" \
   lora_target="$target" \
-  lora_rank="$rank" \
-  output_dir="${MODEL_OUTDIR}/${suffix}" \
-  dataset="$train_dataset"
+  lora_rank="$rank"  \
+  output_dir="${model_dir}/${suffix}" \
+  dataset="$train_dataset" \
+  report_to="wandb" \
+  run_name="${suffix}" \
+  eval_dataset="mmlucot_val_s0_${category}" \
+  per_device_eval_batch_size="4" \
+  eval_strategy="steps" \
+  eval_steps="1"
+
+sleep 10
 
 ##################################################
 # Evaluation
-mapfile -d '' ckpt_dirs < <(find "${MODEL_OUTDIR}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
+for shot in $shots; do
+  eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
-for shot in "${shots[@]}"; do
-    llamafactory-cli eval "$eval_yaml" \
-        model_name_or_path="$model_name" \
-        task="${test_dataset}" \
-        save_dir="${EVAL_OUTDIR}/${suffix}/log/checkpoint-0-n${testset_size}_s${shot}" \
-        n_shot=$shot
+  llamafactory-cli eval "$eval_yaml" \
+    model_name_or_path="$model_name" \
+    task="${test_dataset}" \
+    save_dir="${eval_dir}/${suffix}/log/checkpoint-0_${eval_suffix}" \
+    n_shot=$shot \
+    seed=$eval_seed
 
-    for ckpt in "${ckpt_dirs[@]}"; do
-        ckpt="${ckpt%/}"
-        ckpt_name="$(basename "$ckpt")"
-
-        llamafactory-cli eval "$eval_yaml" \
-            model_name_or_path="$model_name" \
-            task="${test_dataset}" \
-            adapter_name_or_path="${ckpt}" \
-            save_dir="${EVAL_OUTDIR}/${suffix}/log/${ckpt_name}-n${testset_size}_s${shot}" \
-            n_shot=$shot
-        done
+  llamafactory-cli eval "$eval_yaml" \
+    model_name_or_path="$model_name" \
+    task="${test_dataset}" \
+    adapter_name_or_path="${model_dir}/${suffix}" \
+    save_dir="${eval_dir}/${suffix}/log/checkpoint-${epochs}00_${eval_suffix}" \
+    n_shot=$shot \
+    seed=$eval_seed
 done
+
+sleep 10
+
+mapfile -d '' ckpt_dirs < <(find "${model_dir}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
+
+for shot in $shots; do
+for ckpt in "${ckpt_dirs[@]}"; do
+  ckpt="${ckpt%/}"
+  ckpt_name="$(basename "$ckpt")"
+
+  eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
+
+  llamafactory-cli eval "$eval_yaml" \
+    model_name_or_path="$model_name" \
+    task="${test_dataset}" \
+    adapter_name_or_path="${ckpt}" \
+    save_dir="${eval_dir}/${suffix}/log/${ckpt_name}_${eval_suffix}" \
+    n_shot=$shot \
+    seed=$eval_seed
+done
+done
+
+sleep 10
 
 ##################################################
 # Summarize results
 python src/summarize.py  \
-  --base_dir "${EVAL_OUTDIR}/${suffix}/log" \
-  --output_dir "${EVAL_OUTDIR}/${suffix}"
+  --base_dir "${eval_dir}/${suffix}/log" \
+  --output_dir "${eval_dir}/${suffix}"
