@@ -50,7 +50,7 @@ class Evaluator:
     def batch_inference(self, batch_input: dict[str, "torch.Tensor"]) -> list[str]:
         gen_kwargs = {
             "tokenizer": self.tokenizer,
-            "stop_strings": ["[Question]", "[Query]", "Answer: A", "Answer: B", "Answer: C", "Answer: D"],
+            "stop_strings": ["[Query]", "Answer: A", "Answer: B", "Answer: C", "Answer: D"],
             "repetition_penalty": 1.0,
             "temperature": self.eval_temperature,
             "top_k": 20,
@@ -167,10 +167,7 @@ class Evaluator:
 
                 for j, preds in enumerate(pred_groups):
                     label = labels[i + j]
-                    if self.eval_args.lang == "en":
-                        acc = float(np.mean([p == label for p in preds]) > 0.5)
-                    elif self.eval_args.lang == "count_words":
-                        acc = float(np.mean([p == label for p in preds]))
+                    acc = float(np.mean([p == label for p in preds]))
                     outputs.append(acc)
 
                 if VERBOSE:
