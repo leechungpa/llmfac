@@ -42,9 +42,18 @@ category="Humanities"
 eval_yaml="scripts/eval.yaml"
 trainset_size=1000
 testset_size=1000
-shots="5 0 3 1 7"
 temperature=0.05
 eval_seed=0
+
+shots="5 0 3 1 7"
+
+calc_eval_batch_size() {
+  case "$1" in
+    0|1) echo 8 ;;
+    3) echo 3 ;;
+    *) echo 1 ;;
+  esac
+}
 
 ##################################################
 # dataset
@@ -72,7 +81,7 @@ llamafactory-cli train "$train_yaml" \
   eval_dataset="mmlucot_val_s0_${category}" \
   per_device_eval_batch_size="4" \
   eval_strategy="steps" \
-  eval_steps="1"
+  eval_steps="2"
 
 sleep 10
 
@@ -81,20 +90,24 @@ sleep 10
 for shot in $shots; do
   eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
+  # Evaluate the base model
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
     save_dir="${eval_dir}/${suffix}/log/checkpoint-0_${eval_suffix}" \
     n_shot=$shot \
-    seed=$eval_seed
+    seed=$eval_seed \
+    batch_size="$(calc_eval_batch_size "$shot")"
 
+  # Evaluate fintuned models
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
     adapter_name_or_path="${model_dir}/${suffix}" \
     save_dir="${eval_dir}/${suffix}/log/checkpoint-${epochs}00_${eval_suffix}" \
     n_shot=$shot \
-    seed=$eval_seed
+    seed=$eval_seed \
+    batch_size="$(calc_eval_batch_size "$shot")"
 done
 
 sleep 10
@@ -102,20 +115,22 @@ sleep 10
 mapfile -d '' ckpt_dirs < <(find "${model_dir}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
 
 for shot in $shots; do
-for ckpt in "${ckpt_dirs[@]}"; do
-  ckpt="${ckpt%/}"
-  ckpt_name="$(basename "$ckpt")"
+  for ckpt in "${ckpt_dirs[@]}"; do
+    ckpt="${ckpt%/}"
+    ckpt_name="$(basename "$ckpt")"
 
-  eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
+    eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
-  llamafactory-cli eval "$eval_yaml" \
-    model_name_or_path="$model_name" \
-    task="${test_dataset}" \
-    adapter_name_or_path="${ckpt}" \
-    save_dir="${eval_dir}/${suffix}/log/${ckpt_name}_${eval_suffix}" \
-    n_shot=$shot \
-    seed=$eval_seed
-done
+    # Evaluate checkpoints
+    llamafactory-cli eval "$eval_yaml" \
+      model_name_or_path="$model_name" \
+      task="${test_dataset}" \
+      adapter_name_or_path="${ckpt}" \
+      save_dir="${eval_dir}/${suffix}/log/${ckpt_name}_${eval_suffix}" \
+      n_shot=$shot \
+      seed=$eval_seed \
+      batch_size="$(calc_eval_batch_size "$shot")"
+  done
 done
 
 sleep 10
