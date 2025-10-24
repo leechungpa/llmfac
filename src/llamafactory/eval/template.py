@@ -8,7 +8,7 @@ from ..extras.constants import CHOICES
 
 SYSTEM_PROMPT = (
     "You are solving the multiple-choice question. For each question:\n"
-    "- Show your reasoning first, then give the final answer on a new line in this format: 'Answer: <choice>', where <choice> is one of A, B, C, or D.\n"
+    "- Show your reasoning first, then give the final answer on a new line in this format: **'Answer: <choice>'**, where <choice> is one of A, B, C, or D.\n"
     "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
     "\n"
 )
@@ -16,7 +16,7 @@ SYSTEM_PROMPT = (
 # SYSTEM_PROMPT_COUNT_ALPHABETS = (
 #     "You are analyzing text statistics. For each question:\n"
 #     "- Read the text following 'Question:'. Count only the alphabetic characters (A–Z, a–z) in that text.\n"
-#     "- Give the final answer on a new line in this format: 'Answer: <number>', where <number> is the count of alphabetic characters.\n"
+#     "- Give the final answer on a new line in this format: **'Answer: <number>'**,, where <number> is the count of alphabetic characters.\n"
 #     "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
 #     "\n"
 # )
@@ -24,7 +24,7 @@ SYSTEM_PROMPT = (
 SYSTEM_PROMPT_COUNT_WORDS = (
     "You are analyzing text statistics. For each question:\n"
     "- Read the text following 'Question:'. Count the number of words in that text.\n"
-    "- Give the final answer on a new line in this format: 'Answer: <number>', where <number> is the count of words.\n"
+    "- Give the final answer on a new line in this format: **'Answer: <number>'**, where <number> is the count of words.\n"
     "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
     "\n"
 )

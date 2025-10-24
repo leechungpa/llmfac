@@ -36,7 +36,7 @@ class Evaluator:
     def _parse_answer(self, text: str) -> str:
         try:
             for line in reversed(text.splitlines()):
-                match = re.match(r"^\s*(?:Answer|Alphabets)\s*:\s*([A-D]|\d+)", line, flags=re.IGNORECASE)
+                match = re.search(r"Answer\s*:\s*([A-D]|\d+)", line, flags=re.IGNORECASE)
                 if match:
                     if self.eval_args.lang == "count_words":
                         return int(match.group(1))
@@ -128,7 +128,7 @@ class Evaluator:
                 trust_remote_code=self.model_args.trust_remote_code,
             )
             pbar.set_postfix_str(categorys[subject]["name"])
-            inputs, outputs, labels = [], [], []
+            inputs, outputs, accuracies, labels = [], [], [], []
             for i in trange(len(dataset["test"]), desc="Formatting batches", position=1, leave=False):
                 support_set = (
                     dataset["train"].shuffle().select(range(min(self.eval_args.n_shot, len(dataset["train"]))))
@@ -167,8 +167,8 @@ class Evaluator:
 
                 for j, preds in enumerate(pred_groups):
                     label = labels[i + j]
-                    acc = float(np.mean([p == label for p in preds]))
-                    outputs.append(acc)
+                    accuracies.append(float(np.mean([p == label for p in preds])))
+                    outputs.append(preds)
 
                 if VERBOSE:
                     print("[----acc per sample----]")
@@ -176,7 +176,7 @@ class Evaluator:
                     print(outputs[-len(pred_groups):])
                     print("[--------------]")
 
-            corrects = np.array(outputs, dtype=float)
+            corrects = np.array(accuracies, dtype=float)
             category_name = categorys[subject]["category"]
             category_corrects[category_name] = np.concatenate([category_corrects[category_name], corrects], axis=0)
             category_corrects["Average"] = np.concatenate([category_corrects["Average"], corrects], axis=0)

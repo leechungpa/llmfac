@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-FOLDER_RE = re.compile(r"checkpoint-(?P<ckpt>\d+)-n\d+_s(?P<shot>\d+)$")
+CKPT_RE = re.compile(r"checkpoint-(?P<ckpt>\d+)")
+SHOT_RE = re.compile(r"(?:^|[-_])s(?P<shot>\d+)(?:[-_]|$)")
+SEED_RE = re.compile(r"(?:^|[-_])seed(?P<seed>\d+)(?:[-_]|$)")
 NUM_RE = re.compile(r"([-+]?[0-9]*\.?[0-9]+)")
 BASE_METRICS = ["Average", "STEM", "Social Sciences", "Humanities", "Other"]
 CANONICAL_METRICS = BASE_METRICS + [m + "_std" for m in BASE_METRICS]
@@ -20,6 +22,16 @@ NORM_TO_CANON = {}
 for m in CANONICAL_METRICS:
     NORM_TO_CANON[_norm(m)] = m
     NORM_TO_CANON[_norm(m).replace("_", " ")] = m
+
+def parse_folder_name(name):
+    ckpt_match = CKPT_RE.search(name)
+    shot_match = SHOT_RE.search(name)
+    if not ckpt_match or not shot_match:
+        return None
+    seed_match = SEED_RE.search(name)
+    seed = int(seed_match.group("seed")) if seed_match else 0
+    return int(ckpt_match.group("ckpt")), int(shot_match.group("shot")), seed
+
 
 def get_color(shot, max_shot, cmap_name="viridis"):
     cmap = plt.get_cmap(cmap_name)
@@ -47,27 +59,32 @@ def parse_results_log(path):
                     vals[canon] = None
     return None if all(v is None for v in vals.values()) else vals
 
-def make_dataframe(base_dir):
+def make_dataframe(base_dirs):
     rows = []
-    for name in sorted(os.listdir(base_dir)):
-        full = os.path.join(base_dir, name)
-        if not os.path.isdir(full):
-            continue
-        mo = FOLDER_RE.match(name)
-        if not mo:
-            continue
-        parsed = parse_results_log(os.path.join(full, "results.log"))
-        if parsed is None:
-            continue
-        rows.append({
-            "checkpoint": int(mo.group("ckpt")),
-            "shot": int(mo.group("shot")),
-            **parsed
-        })
+    for base_dir in base_dirs:
+        base_dir_abs = os.path.abspath(base_dir)
+        for name in sorted(os.listdir(base_dir)):
+            full = os.path.join(base_dir, name)
+            if not os.path.isdir(full):
+                continue
+            parsed_name = parse_folder_name(name)
+            if not parsed_name:
+                continue
+            ckpt, shot, seed = parsed_name
+            parsed = parse_results_log(os.path.join(full, "results.log"))
+            if parsed is None:
+                continue
+            rows.append({
+                "source": base_dir_abs,
+                "checkpoint": ckpt,
+                "shot": shot,
+                "seed": seed,
+                **parsed
+            })
     if not rows:
         print("ERROR: No results found.", file=sys.stderr)
         sys.exit(2)
-    return pd.DataFrame(rows).sort_values(["shot", "checkpoint"]).reset_index(drop=True)
+    return pd.DataFrame(rows).sort_values(["shot", "checkpoint", "source", "seed"]).reset_index(drop=True)
 
 
 def plot_lines(metric, df, out, max_shot):
@@ -76,12 +93,25 @@ def plot_lines(metric, df, out, max_shot):
     plt.figure()
     for shot, sub in df.groupby("shot"):
         sub = sub.sort_values("checkpoint")
-        plt.plot(
-            sub["checkpoint"], sub[metric],
-            marker="o",
-            label=f"{shot}-shot",
-            color=get_color(shot, max_shot)
-        )
+        run_keys = sub[["seed", "source"]].drop_duplicates()
+        num_runs = len(run_keys)
+        color = get_color(shot, max_shot)
+        if num_runs <= 1:
+            label = f"{shot}-shot"
+            plt.plot(
+                sub["checkpoint"], sub[metric],
+                marker="o",
+                label=label,
+                color=color
+            )
+        else:
+            stats = sub.groupby("checkpoint")[metric].agg(["mean", "std"]).rename(columns={"mean": "mu", "std": "sigma"}).sort_index()
+            xs = stats.index.values
+            mu = stats["mu"].values
+            sigma = stats["sigma"].fillna(0).values
+            plt.plot(xs, mu, marker="o", label=f"{shot}-shot (mean)", color=color)
+            if np.any(sigma > 0):
+                plt.fill_between(xs, mu - sigma, mu + sigma, alpha=0.25, color=color)
     plt.xlabel("checkpoint")
     plt.ylabel("accuracy")
     plt.title(metric)
@@ -98,6 +128,8 @@ def plot_mean_std_band(metric, df, out, max_shot, window=3):
         return
     plt.figure()
     for shot, sub in df.groupby("shot"):
+        run_keys = sub[["seed", "source"]].drop_duplicates()
+        has_multi_seed = len(run_keys) > 1
         agg = sub.groupby("checkpoint")[metric].agg(["mean", "std"]).rename(columns={"mean": "mu", "std": "sigma"}).sort_index()
         xs = agg.index.values
         mu = agg["mu"].values
@@ -106,8 +138,10 @@ def plot_mean_std_band(metric, df, out, max_shot, window=3):
             mu = pd.Series(mu).rolling(window=window, center=True).mean().to_numpy()
             sigma = pd.Series(sigma).rolling(window=window, center=True).mean().to_numpy()
         c = get_color(shot, max_shot)
-        plt.plot(xs, mu, lw=2.5, label=f"{shot}-shot", color=c)
-        plt.fill_between(xs, mu - sigma, mu + sigma, alpha=0.25, color=c)
+        label = f"{shot}-shot (mean)" if has_multi_seed else f"{shot}-shot"
+        plt.plot(xs, mu, lw=2.5, label=label, color=c)
+        if has_multi_seed and np.any(sigma > 0):
+            plt.fill_between(xs, mu - sigma, mu + sigma, alpha=0.25, color=c)
     plt.xlabel("checkpoint")
     plt.ylabel("accuracy")
     title = f"{metric}" + (f" (smoothed w={window})" if window and window > 1 else "")
@@ -122,13 +156,14 @@ def plot_mean_std_band(metric, df, out, max_shot, window=3):
 
 def main():
     p = argparse.ArgumentParser(description="Summarize results and produce plots.")
-    p.add_argument("--base_dir", type=str, required=True, help="Directory with checkpoint-* subfolders")
+    p.add_argument("--base_dir", type=str, nargs="+", required=True, help="One or more directories with checkpoint-* subfolders")
     p.add_argument("--output_dir", type=str, default="plots")
     p.add_argument("--smooth_window_band", type=int, default=3)
     args = p.parse_args()
 
-    if not os.path.isdir(args.base_dir):
-        print(f"ERROR: Base directory not found: {args.base_dir}", file=sys.stderr)
+    missing = [path for path in args.base_dir if not os.path.isdir(path)]
+    if missing:
+        print("ERROR: Base directory not found:", ", ".join(missing), file=sys.stderr)
         sys.exit(1)
     os.makedirs(args.output_dir, exist_ok=True)
 
