@@ -30,6 +30,10 @@ SYSTEM_PROMPT_COUNT_WORDS = (
 )
 
 
+def get_last_sentence(text: str) -> str:
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    return sentences[-1].strip() if sentences and sentences[-1].strip() else "Parsing failed, so this sentence was generated."
+
 def count_words(text):
     return len(re.sub(r'[^\w\s]', '', text).strip().split())
 
@@ -53,10 +57,10 @@ class EvalTemplate:
         elif self.name == "count_words":
             prompt = (
                 "[Query]\n"
-                + "Question: " + example["question"] + "\n"
+                + "Question: " + get_last_sentence(example["question"]) + "\n"
                 + "\n"
             )
-            response = f"Answer: {count_words(example['question'])}"
+            response = f"Answer: {count_words(get_last_sentence(example['question']))}"
         # elif self.name == "count_alphabets":
         #     prompt = (
         #         "[Query]\n"

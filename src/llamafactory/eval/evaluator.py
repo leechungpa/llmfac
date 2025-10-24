@@ -14,7 +14,7 @@ from ..data import get_template_and_fix_tokenizer
 from ..extras.constants import CHOICES, SUBJECTS
 from ..hparams import get_eval_args
 from ..model import load_model, load_tokenizer
-from .template import get_eval_template, count_words
+from .template import get_eval_template, count_words, get_last_sentence
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -143,7 +143,7 @@ class Evaluator:
                 if self.eval_args.lang == "en":
                     labels.append(dataset["test"][i]['answer_idx'])
                 elif self.eval_args.lang == "count_words":
-                    labels.append(count_words(dataset['test'][i]['question']))
+                    labels.append(count_words(get_last_sentence(dataset['test'][i]['question'])))
                 # elif self.eval_args.lang == "count_alphabets":
                 #     labels.append(len(re.findall(r'[A-Za-z]', dataset['test'][i]['question'])))
 
@@ -174,6 +174,7 @@ class Evaluator:
                     print("[----acc per sample----]")
                     print(pred_groups, labels[i:i + self.eval_args.batch_size])
                     print(outputs[-len(pred_groups):])
+                    print(accuracies[-len(pred_groups):])
                     print("[--------------]")
 
             corrects = np.array(accuracies, dtype=float)
