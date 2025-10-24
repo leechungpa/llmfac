@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 CKPT_RE = re.compile(r"checkpoint-(?P<ckpt>\d+)")
 SHOT_RE = re.compile(r"(?:^|[-_])s(?P<shot>\d+)(?:[-_]|$)")
-SEED_RE = re.compile(r"(?:^|[-_])seed(?P<seed>\d+)(?:[-_]|$)")
 NUM_RE = re.compile(r"([-+]?[0-9]*\.?[0-9]+)")
 BASE_METRICS = ["Average", "STEM", "Social Sciences", "Humanities", "Other"]
 CANONICAL_METRICS = BASE_METRICS + [m + "_std" for m in BASE_METRICS]
@@ -28,10 +27,7 @@ def parse_folder_name(name):
     shot_match = SHOT_RE.search(name)
     if not ckpt_match or not shot_match:
         return None
-    seed_match = SEED_RE.search(name)
-    seed = int(seed_match.group("seed")) if seed_match else 0
-    return int(ckpt_match.group("ckpt")), int(shot_match.group("shot")), seed
-
+    return int(ckpt_match.group("ckpt")), int(shot_match.group("shot"))
 
 def get_color(shot, max_shot, cmap_name="viridis"):
     cmap = plt.get_cmap(cmap_name)
@@ -60,9 +56,9 @@ def parse_results_log(path):
     return None if all(v is None for v in vals.values()) else vals
 
 def make_dataframe(base_dirs):
-    rows = []
+    frames = []
     for base_dir in base_dirs:
-        base_dir_abs = os.path.abspath(base_dir)
+        rows = []
         for name in sorted(os.listdir(base_dir)):
             full = os.path.join(base_dir, name)
             if not os.path.isdir(full):
@@ -70,48 +66,72 @@ def make_dataframe(base_dirs):
             parsed_name = parse_folder_name(name)
             if not parsed_name:
                 continue
-            ckpt, shot, seed = parsed_name
+            ckpt, shot = parsed_name
             parsed = parse_results_log(os.path.join(full, "results.log"))
             if parsed is None:
                 continue
-            rows.append({
-                "source": base_dir_abs,
+            row = {
                 "checkpoint": ckpt,
                 "shot": shot,
-                "seed": seed,
-                **parsed
-            })
-    if not rows:
+            }
+            for metric in BASE_METRICS:
+                row[metric] = parsed.get(metric)
+            rows.append(row)
+        if not rows:
+            print(f"WARNING: No results found under {base_dir}.", file=sys.stderr)
+            continue
+        df = pd.DataFrame(rows).sort_values(["shot", "checkpoint"]).reset_index(drop=True)
+        df.insert(0, "source_dir", os.path.abspath(base_dir))
+        frames.append(df)
+    if not frames:
         print("ERROR: No results found.", file=sys.stderr)
         sys.exit(2)
-    return pd.DataFrame(rows).sort_values(["shot", "checkpoint", "source", "seed"]).reset_index(drop=True)
+    return pd.concat(frames, ignore_index=True).sort_values(["source_dir", "shot", "checkpoint"]).reset_index(drop=True)
+
+def aggregate_metrics(df):
+    metrics = [m for m in BASE_METRICS if m in df.columns]
+    if not metrics:
+        print("ERROR: No metrics found to aggregate.", file=sys.stderr)
+        sys.exit(3)
+    grouped = df.groupby(["shot", "checkpoint"], dropna=False)
+    mean_df = grouped[metrics].mean().reset_index()
+    std_df = grouped[metrics].std(ddof=0).fillna(0).reset_index()
+    seed_counts = grouped["source_dir"].nunique().reset_index(name="seed_count")
+    agg_df = mean_df.merge(seed_counts, on=["shot", "checkpoint"], how="left")
+    agg_df = agg_df.set_index(["shot", "checkpoint"])
+    std_df = std_df.set_index(["shot", "checkpoint"])
+    for metric in metrics:
+        agg_df[f"{metric}_seed_std"] = std_df[metric].reindex(agg_df.index).fillna(0)
+    return agg_df.reset_index(), metrics
 
 
 def plot_lines(metric, df, out, max_shot):
     if metric not in df.columns:
         return
     plt.figure()
-    for shot, sub in df.groupby("shot"):
+    std_col = f"{metric}_seed_std"
+    for shot, sub in df.groupby("shot", dropna=False):
         sub = sub.sort_values("checkpoint")
-        run_keys = sub[["seed", "source"]].drop_duplicates()
-        num_runs = len(run_keys)
         color = get_color(shot, max_shot)
-        if num_runs <= 1:
-            label = f"{shot}-shot"
-            plt.plot(
-                sub["checkpoint"], sub[metric],
-                marker="o",
-                label=label,
-                color=color
-            )
-        else:
-            stats = sub.groupby("checkpoint")[metric].agg(["mean", "std"]).rename(columns={"mean": "mu", "std": "sigma"}).sort_index()
-            xs = stats.index.values
-            mu = stats["mu"].values
-            sigma = stats["sigma"].fillna(0).values
-            plt.plot(xs, mu, marker="o", label=f"{shot}-shot (mean)", color=color)
-            if np.any(sigma > 0):
-                plt.fill_between(xs, mu - sigma, mu + sigma, alpha=0.25, color=color)
+        label = f"{shot}-shot"
+        if "seed_count" in sub.columns:
+            counts = sub["seed_count"].dropna().unique()
+            if len(counts) == 1:
+                label += f" (n={int(counts[0])})"
+            elif len(counts) > 1:
+                label += f" (n={int(counts.min())}-{int(counts.max())})"
+        plt.plot(
+            sub["checkpoint"], sub[metric],
+            marker="o",
+            label=label,
+            color=color
+        )
+        if std_col in sub.columns:
+            std_vals = sub[std_col].fillna(0).to_numpy()
+            if np.any(std_vals > 0):
+                lower = sub[metric] - std_vals
+                upper = sub[metric] + std_vals
+                plt.fill_between(sub["checkpoint"], lower, upper, color=color, alpha=0.2)
     plt.xlabel("checkpoint")
     plt.ylabel("accuracy")
     plt.title(metric)
@@ -123,69 +143,42 @@ def plot_lines(metric, df, out, max_shot):
     print(f"Saved line plot: {out}")
 
 
-def plot_mean_std_band(metric, df, out, max_shot, window=3):
-    if metric not in df.columns:
-        return
-    plt.figure()
-    for shot, sub in df.groupby("shot"):
-        run_keys = sub[["seed", "source"]].drop_duplicates()
-        has_multi_seed = len(run_keys) > 1
-        agg = sub.groupby("checkpoint")[metric].agg(["mean", "std"]).rename(columns={"mean": "mu", "std": "sigma"}).sort_index()
-        xs = agg.index.values
-        mu = agg["mu"].values
-        sigma = agg["sigma"].fillna(0).values
-        if window and window > 1:
-            mu = pd.Series(mu).rolling(window=window, center=True).mean().to_numpy()
-            sigma = pd.Series(sigma).rolling(window=window, center=True).mean().to_numpy()
-        c = get_color(shot, max_shot)
-        label = f"{shot}-shot (mean)" if has_multi_seed else f"{shot}-shot"
-        plt.plot(xs, mu, lw=2.5, label=label, color=c)
-        if has_multi_seed and np.any(sigma > 0):
-            plt.fill_between(xs, mu - sigma, mu + sigma, alpha=0.25, color=c)
-    plt.xlabel("checkpoint")
-    plt.ylabel("accuracy")
-    title = f"{metric}" + (f" (smoothed w={window})" if window and window > 1 else "")
-    plt.title(title)
-    plt.legend()
-    plt.grid(True, ls=":")
-    plt.tight_layout()
-    plt.savefig(out, bbox_inches="tight")
-    plt.close()
-    print(f"Saved banded plot: {out}")
-
-
 def main():
     p = argparse.ArgumentParser(description="Summarize results and produce plots.")
     p.add_argument("--base_dir", type=str, nargs="+", required=True, help="One or more directories with checkpoint-* subfolders")
     p.add_argument("--output_dir", type=str, default="plots")
-    p.add_argument("--smooth_window_band", type=int, default=3)
     args = p.parse_args()
 
-    missing = [path for path in args.base_dir if not os.path.isdir(path)]
-    if missing:
-        print("ERROR: Base directory not found:", ", ".join(missing), file=sys.stderr)
-        sys.exit(1)
+    base_dirs = []
+    for candidate in args.base_dir:
+        if not os.path.isdir(candidate):
+            print(f"ERROR: Base directory not found: {candidate}", file=sys.stderr)
+            sys.exit(1)
+        base_dirs.append(candidate)
     os.makedirs(args.output_dir, exist_ok=True)
 
-    df = make_dataframe(args.base_dir)
-    csv_path = os.path.join(args.output_dir, "results.csv")
-    df.to_csv(csv_path, index=False)
-    print(f"Saved results CSV: {csv_path}")
+    raw_df = make_dataframe(base_dirs)
+    agg_df, metrics = aggregate_metrics(raw_df)
 
-    max_shot = int(df["shot"].max()) if not df["shot"].isnull().all() else 0
+    raw_csv_path = os.path.join(args.output_dir, "results.csv")
+    agg_csv_path = os.path.join(args.output_dir, "results_summary.csv")
+    raw_df.to_csv(raw_csv_path, index=False)
+    agg_df.to_csv(agg_csv_path, index=False)
+    print(f"Saved raw results CSV: {raw_csv_path}")
+    print(f"Saved aggregated summary CSV: {agg_csv_path}")
 
-    for metric in BASE_METRICS:
+    max_shot = int(agg_df["shot"].max()) if not agg_df["shot"].isnull().all() else 0
+
+    for metric in metrics:
         base_name = metric.replace(" ", "_")
         out_lines = os.path.join(args.output_dir, f"{base_name}.png")
-        out_band = os.path.join(args.output_dir, f"banded_{base_name}.png")
-        plot_lines(metric, df, out_lines, max_shot)
-        plot_mean_std_band(metric, df, out_band, max_shot, window=args.smooth_window_band)
+        plot_lines(metric, agg_df, out_lines, max_shot)
 
     print(f"\nAll plots and CSV have been saved to: {os.path.abspath(args.output_dir)}")
 
     with pd.option_context("display.width", 120, "display.max_columns", None):
-        print("\nPreview of results:")
-        print(df.head(20))
+        print("\nPreview of aggregated results:")
+        print(agg_df.head(20))
 
 if __name__ == "__main__":
     main()

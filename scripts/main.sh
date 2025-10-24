@@ -49,7 +49,8 @@ shots="5 0 3 1 7"
 
 calc_eval_batch_size() {
   case "$1" in
-    0|1) echo 8 ;;
+    0) echo 10 ;;
+    1) echo 8 ;;
     3) echo 3 ;;
     *) echo 1 ;;
   esac
@@ -62,6 +63,8 @@ test_dataset="mmlucot_n${trainset_size}_n${testset_size}_t${temperature}"
 
 # directories
 suffix="${model_name}/${category}/epoch${epochs}_lr${lr}_${target_name}_r${rank}"
+
+base_eval_suffix="${model_name}/base"
 
 model_dir="/data/${username}/llmfac/results"
 eval_dir="/home/${username}/llmfac/results_eval"
@@ -81,7 +84,7 @@ llamafactory-cli train "$train_yaml" \
   eval_dataset="mmlucot_val_s0_${category}" \
   per_device_eval_batch_size="4" \
   eval_strategy="steps" \
-  eval_steps="2"
+  eval_steps="1"
 
 sleep 10
 
@@ -94,7 +97,7 @@ for shot in $shots; do
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
-    save_dir="${eval_dir}/${suffix}/log/checkpoint-0_${eval_suffix}" \
+    save_dir="${eval_dir}/${base_eval_suffix}/log/checkpoint-0_${eval_suffix}" \
     n_shot=$shot \
     seed=$eval_seed \
     batch_size="$(calc_eval_batch_size "$shot")"
@@ -137,6 +140,7 @@ sleep 10
 
 ##################################################
 # Summarize results
-python src/summarize.py  \
-  --base_dir "${eval_dir}/${suffix}/log" \
+
+python src/utils/summarize.py  \
+  --base_dir "${eval_dir}/${base_eval_suffix}/log" "${eval_dir}/${suffix}/log" \
   --output_dir "${eval_dir}/${suffix}"
