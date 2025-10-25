@@ -38,6 +38,7 @@ check_and_set_gpu() {
   local REQ_GPUS=${1:-1}        # number of GPUs required (default: 1)
   local GPUS_TO_CHECK=(${2:-})  # user-specified GPU list, e.g., "0 1 3 5" (default: all GPUs)
   local WAIT_TIME=${3:-60}      # wait time between checks in seconds (default: 60)
+  local STABILITY_DELAY=10 
 
   local NUM_GPUS=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)
   local TARGET_GPUS=()
@@ -63,20 +64,47 @@ check_and_set_gpu() {
   fi
 
   # check and set gpu
+  _gpu_is_free() {
+    local g="$1"
+    # 필요시 grep 패턴 수정
+    if nvidia-smi -i "$g" | grep -qE "python"; then
+      return 1  # 사용 중
+    else
+      return 0  # 비어 있음
+    fi
+  }
+
   while true; do
     FREE_GPUS=()
-
     for gpu in "${GPUS_TO_CHECK[@]}"; do
-      if ! nvidia-smi -i "$gpu" | grep -qE "python"; then
+      if _gpu_is_free "$gpu"; then
         FREE_GPUS+=("$gpu")
       fi
     done
 
     if (( ${#FREE_GPUS[@]} >= REQ_GPUS )); then
       TARGET_GPUS=("${FREE_GPUS[@]:0:$REQ_GPUS}")
-      export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${TARGET_GPUS[*]}")
-      echo "[GPU Manager] Assigned GPU(s): $CUDA_VISIBLE_DEVICES"
-      return 0
+      echo "[GPU Manager] Candidates: ${TARGET_GPUS[*]} found free. Verifying in ${STABILITY_DELAY}s..."
+      sleep "$STABILITY_DELAY"
+
+      local STABLE_GPUS=()
+      for gpu in "${TARGET_GPUS[@]}"; do
+        if _gpu_is_free "$gpu"; then
+          STABLE_GPUS+=("$gpu")
+        fi
+      done
+
+      if (( ${#STABLE_GPUS[@]} >= REQ_GPUS )); then
+        TARGET_GPUS=("${STABLE_GPUS[@]:0:$REQ_GPUS}")
+        export CUDA_VISIBLE_DEVICES
+        CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${TARGET_GPUS[*]}")
+        echo "[GPU Manager] Assigned GPU(s): $CUDA_VISIBLE_DEVICES"
+        return 0
+      else
+        echo "[GPU Manager] Candidates not stable. Retrying in ${WAIT_TIME}s..."
+        sleep "$WAIT_TIME"
+        continue
+      fi
     fi
 
     echo "[GPU Manager] Not enough free GPUs. Retrying in ${WAIT_TIME}s..."
