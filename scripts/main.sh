@@ -1,9 +1,9 @@
 # !/usr/bin/env bash
 
+set -euo pipefail
 
 source scripts/env.sh
-
-set -euo pipefail
+log_start
 
 ##################################################
 # model
@@ -141,11 +141,14 @@ for shot in $shots; do
   done
 done
 
-sleep 10
 
 ##################################################
 # Summarize results
 
+sleep 5
+
 python src/utils/summarize.py  \
   --base_dir "${eval_dir}/${base_eval_suffix}/log" "${eval_dir}/${suffix}/log" \
   --output_dir "${eval_dir}/${suffix}"
+
+log_stop

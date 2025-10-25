@@ -1,11 +1,39 @@
 # !/usr/bin/env bash
 
+##################################################
+# setting API keys
+export HF_TOKEN="hf_"
+export OPENAI_API_KEY="sk-"
+
+##################################################
+# HF cache location
 export HF_HOME="/data/$(whoami)/hf"
 
+##################################################
+# NCCL flags
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
 
+##################################################
+# logging helpers
+log_start() {
+  local log_dir="${1:-./logs}"
+  mkdir -p "$log_dir"
 
+  log_file="${log_dir}/$(date +'%Y%m%d_%H%M%S').log"
+
+  exec > >(tee -a "$log_file") 2>&1
+  echo "[LOG] Started: $(date)"
+  echo "[LOG] File: $log_file"
+}
+
+log_stop() {
+  echo "[LOG] Stopped: $(date)"
+  exec >&2
+}
+
+##################################################
+# GPU allocation helper
 check_and_set_gpu() {
   local REQ_GPUS=${1:-1}        # number of GPUs required (default: 1)
   local GPUS_TO_CHECK=(${2:-})  # user-specified GPU list, e.g., "0 1 3 5" (default: all GPUs)
