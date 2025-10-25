@@ -39,7 +39,6 @@ check_and_set_gpu() {
     FREE_GPUS=()
 
     for gpu in "${GPUS_TO_CHECK[@]}"; do
-        echo $gpu
       if ! nvidia-smi -i "$gpu" | grep -qE "python"; then
         FREE_GPUS+=("$gpu")
       fi
