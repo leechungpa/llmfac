@@ -148,7 +148,7 @@ class Evaluator:
                 #     labels.append(len(re.findall(r'[A-Za-z]', dataset['test'][i]['question'])))
 
                 if VERBOSE:
-                    if i==0:
+                    if i<10:
                         print("[----inputs----]")
                         texts = self.tokenizer.batch_decode(input_ids, skip_special_tokens=True)
                         print("".join(texts))
@@ -168,11 +168,10 @@ class Evaluator:
                 for j, preds in enumerate(pred_groups):
                     label = labels[i + j]
                     accuracies.append(float(np.mean([p == label for p in preds])))
-                    outputs.append(preds)
+                    outputs.append([preds, [label]])
 
                 if VERBOSE:
                     print("[----acc per sample----]")
-                    print(pred_groups, labels[i:i + self.eval_args.batch_size])
                     print(outputs[-len(pred_groups):])
                     print(accuracies[-len(pred_groups):])
                     print("[--------------]")

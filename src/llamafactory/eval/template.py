@@ -23,7 +23,7 @@ SYSTEM_PROMPT = (
 
 SYSTEM_PROMPT_COUNT_WORDS = (
     "You are analyzing text statistics. For each question:\n"
-    "- Read the text following 'Question:'. Count the number of words in that text.\n"
+    "- Read the text inside the quotation marks following 'Question:' and count the number of words separated by spaces.\n"
     "- Give the final answer on a new line in this format: **'Answer: <number>'**, where <number> is the count of words.\n"
     "- If sample queries and answers are provided, study them first and match their reasoning style, structure, and level of detail in your responses.\n"
     "\n"
@@ -32,7 +32,10 @@ SYSTEM_PROMPT_COUNT_WORDS = (
 
 def get_last_sentence(text: str) -> str:
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-    return sentences[-1].strip() if sentences and sentences[-1].strip() else "Parsing failed, so this sentence was generated."
+    if sentences and sentences[0].strip():
+        return f"'{sentences[0].strip()}'"
+    else:
+        return "'Parsing failed, so this sentence was generated.'"
 
 def count_words(text):
     return len(re.sub(r'[^\w\s]', '', text).strip().split())
