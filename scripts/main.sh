@@ -1,12 +1,7 @@
 # !/usr/bin/env bash
 
-username=$(whoami)
 
-export HF_HOME="/data/${username}/hf"
-export NCCL_P2P_DISABLE=1
-export NCCL_IB_DISABLE=1
-
-export CUDA_VISIBLE_DEVICES=0
+source scripts/env.sh
 
 set -euo pipefail
 
@@ -66,11 +61,15 @@ suffix="${model_name}/${category}/epoch${epochs}_lr${lr}_${target_name}_r${rank}
 
 base_eval_suffix="${model_name}/base"
 
+username=$(whoami)
+
 model_dir="/data/${username}/llmfac/results"
 eval_dir="/home/${username}/llmfac/results_eval"
 
 ##################################################
 # Train
+check_and_set_gpu
+
 llamafactory-cli train "$train_yaml" \
   model_name_or_path="$model_name" \
   num_train_epochs="$epochs" \
@@ -94,6 +93,8 @@ for shot in $shots; do
   eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
   # Evaluate the base model
+  check_and_set_gpu
+
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
@@ -103,6 +104,8 @@ for shot in $shots; do
     batch_size="$(calc_eval_batch_size "$shot")"
 
   # Evaluate fintuned models
+  check_and_set_gpu
+
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
@@ -125,6 +128,8 @@ for shot in $shots; do
     eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
     # Evaluate checkpoints
+    check_and_set_gpu
+
     llamafactory-cli eval "$eval_yaml" \
       model_name_or_path="$model_name" \
       task="${test_dataset}" \
