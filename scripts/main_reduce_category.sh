@@ -67,7 +67,7 @@ train_dataset="mmlucot_train_n${trainset_size}_s0_${category},mmlucot_train_n${t
 test_dataset="mmlucot_n${trainset_size}_n${testset_size}_t${temperature}"
 
 # directories
-suffix="${model_name}/${category}/epoch${epochs}_lr${lr}_${target_name}_r${rank}"
+suffix="${model_name}/${category}/reduce_${target_name}_r${rank}_epoch${epochs}_lr${lr}"
 
 base_eval_suffix="${model_name}/base"
 

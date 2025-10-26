@@ -37,7 +37,7 @@ log_stop() {
 check_and_set_gpu() {
   local REQ_GPUS=${1:-1}        # number of GPUs required (default: 1)
   local GPUS_TO_CHECK=(${2:-})  # user-specified GPU list, e.g., "0 1 3 5" (default: all GPUs)
-  local WAIT_TIME=${3:-60}      # wait time between checks in seconds (default: 60)
+  local WAIT_TIME=${3:-100}      # wait time between checks in seconds (default: 100)
   local STABILITY_DELAY=10 
 
   local NUM_GPUS=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)
@@ -66,11 +66,10 @@ check_and_set_gpu() {
   # check and set gpu
   _gpu_is_free() {
     local g="$1"
-    # 필요시 grep 패턴 수정
     if nvidia-smi -i "$g" | grep -qE "python"; then
-      return 1  # 사용 중
+      return 1
     else
-      return 0  # 비어 있음
+      return 0
     fi
   }
 
@@ -85,7 +84,7 @@ check_and_set_gpu() {
     if (( ${#FREE_GPUS[@]} >= REQ_GPUS )); then
       TARGET_GPUS=("${FREE_GPUS[@]:0:$REQ_GPUS}")
       echo "[GPU Manager] Candidates: ${TARGET_GPUS[*]} found free. Verifying in ${STABILITY_DELAY}s..."
-      sleep "$STABILITY_DELAY"
+      sleep $STABILITY_DELAY
 
       local STABLE_GPUS=()
       for gpu in "${TARGET_GPUS[@]}"; do

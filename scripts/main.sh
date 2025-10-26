@@ -57,7 +57,7 @@ train_dataset="mmlucot_train_n${trainset_size}_s0_${category}"
 test_dataset="mmlucot_n${trainset_size}_n${testset_size}_t${temperature}"
 
 # directories
-suffix="${model_name}/${category}/epoch${epochs}_lr${lr}_${target_name}_r${rank}"
+suffix="${model_name}/${category}/${target_name}_r${rank}_epoch${epochs}_lr${lr}"
 
 base_eval_suffix="${model_name}/base"
 
@@ -84,8 +84,6 @@ llamafactory-cli train "$train_yaml" \
   per_device_eval_batch_size="4" \
   eval_strategy="steps" \
   eval_steps="1"
-
-sleep 10
 
 ##################################################
 # Evaluation
@@ -116,8 +114,6 @@ for shot in $shots; do
     batch_size="$(calc_eval_batch_size "$shot")"
 done
 
-sleep 10
-
 mapfile -d '' ckpt_dirs < <(find "${model_dir}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
 
 for shot in $shots; do
@@ -140,7 +136,6 @@ for shot in $shots; do
       batch_size="$(calc_eval_batch_size "$shot")"
   done
 done
-
 
 ##################################################
 # Summarize results
