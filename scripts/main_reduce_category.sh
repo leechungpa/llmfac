@@ -16,7 +16,6 @@ model_name="Qwen/Qwen2.5-3B-Instruct" # 3B 7B 1.5B
 train_yaml="scripts/train.yaml"
 rank=128
 lr=1.0e-5
-
 epochs=5
 
 declare -A interleave_probs
@@ -113,12 +112,12 @@ done
 
 ##################################################
 # Evaluation
+check_and_set_gpu
+
 for shot in $shots; do
   eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
   # Evaluate the base model
-  check_and_set_gpu
-
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
@@ -128,8 +127,6 @@ for shot in $shots; do
     batch_size="$(calc_eval_batch_size "$shot")"
 
   # Evaluate fintuned models
-  check_and_set_gpu
-
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \

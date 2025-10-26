@@ -14,9 +14,9 @@ model_name="Qwen/Qwen2.5-3B-Instruct" # 3B 7B 1.5B
 ##################################################
 # train
 train_yaml="scripts/train.yaml"
-epochs=3
 rank=128
 lr=1.0e-5
+epochs=5
 
 # target="all"
 # target_name="all"
@@ -87,12 +87,12 @@ llamafactory-cli train "$train_yaml" \
 
 ##################################################
 # Evaluation
+check_and_set_gpu
+
 for shot in $shots; do
   eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
   # Evaluate the base model
-  check_and_set_gpu
-
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
@@ -102,8 +102,6 @@ for shot in $shots; do
     batch_size="$(calc_eval_batch_size "$shot")"
 
   # Evaluate fintuned models
-  check_and_set_gpu
-
   llamafactory-cli eval "$eval_yaml" \
     model_name_or_path="$model_name" \
     task="${test_dataset}" \
@@ -124,8 +122,6 @@ for shot in $shots; do
     eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
     # Evaluate checkpoints
-    check_and_set_gpu
-
     llamafactory-cli eval "$eval_yaml" \
       model_name_or_path="$model_name" \
       task="${test_dataset}" \
