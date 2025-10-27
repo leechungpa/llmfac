@@ -20,7 +20,7 @@ log_start() {
   local log_dir="${1:-./logs}"
   mkdir -p "$log_dir"
 
-  pid=$$
+  local pid=$$
   log_file="${log_dir}/$(date +'%Y%m%d_%H%M%S')_pid-${pid}.log"
 
   exec > >(tee -a "$log_file") 2>&1
@@ -32,6 +32,12 @@ log_start() {
 log_stop() {
   echo "[LOG] Stopped: $(date)"
   exec >&2
+
+  if [[ -n "$log_file" && -f "$log_file" ]]; then
+    local done_file="${log_file/_pid-*}_done.log"
+    mv "$log_file" "$done_file"
+    echo "[LOG] Renamed: $done_file"
+  fi
 }
 
 ##################################################
