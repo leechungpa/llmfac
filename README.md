@@ -28,6 +28,8 @@ conda activate llmfac
 pip install -e ".[torch,metrics]" --no-build-isolation
 pip uninstall torch torchvision
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+# pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
+pip install prettytable wandb gpustat
 
 python -c "import torch; print(torch.cuda.is_available())"
 ```
