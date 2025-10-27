@@ -20,10 +20,12 @@ log_start() {
   local log_dir="${1:-./logs}"
   mkdir -p "$log_dir"
 
-  log_file="${log_dir}/$(date +'%Y%m%d_%H%M%S').log"
+  pid=$$
+  log_file="${log_dir}/$(date +'%Y%m%d_%H%M%S')_pid-${pid}.log"
 
   exec > >(tee -a "$log_file") 2>&1
   echo "[LOG] Started: $(date)"
+  echo "[LOG] PID: $pid"
   echo "[LOG] File: $log_file"
 }
 
@@ -38,7 +40,7 @@ check_and_set_gpu() {
   local REQ_GPUS=${1:-1}        # number of GPUs required (default: 1)
   local GPUS_TO_CHECK=(${2:-})  # user-specified GPU list, e.g., "0 1 3 5" (default: all GPUs)
   local WAIT_TIME=${3:-100}      # wait time between checks in seconds (default: 100)
-  local STABILITY_DELAY=10 
+  local STABILITY_DELAY=20 
 
   local NUM_GPUS=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)
   local TARGET_GPUS=()
