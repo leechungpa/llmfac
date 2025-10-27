@@ -38,7 +38,7 @@ eval_yaml="scripts/eval.yaml"
 trainset_size=1000
 testset_size=1000
 temperature=0.05
-eval_seed=0
+eval_seeds="0 1 2"
 
 shots="5 0 3 1 7"
 
@@ -89,6 +89,7 @@ llamafactory-cli train "$train_yaml" \
 # Evaluation
 check_and_set_gpu
 
+for eval_seed in $eval_seeds; do
 for shot in $shots; do
   eval_suffix="t${temperature}_n${testset_size}_s${shot}_seed${eval_seed}"
 
@@ -111,9 +112,11 @@ for shot in $shots; do
     seed=$eval_seed \
     batch_size="$(calc_eval_batch_size "$shot")"
 done
+done
 
 mapfile -d '' ckpt_dirs < <(find "${model_dir}/${suffix}" -maxdepth 1 -type d -name 'checkpoint*' -print0 | sort -z)
 
+for eval_seed in $eval_seeds; do
 for shot in $shots; do
   for ckpt in "${ckpt_dirs[@]}"; do
     ckpt="${ckpt%/}"
@@ -132,10 +135,10 @@ for shot in $shots; do
       batch_size="$(calc_eval_batch_size "$shot")"
   done
 done
+done
 
 ##################################################
 # Summarize results
-
 sleep 5
 
 python src/utils/summarize.py  \
