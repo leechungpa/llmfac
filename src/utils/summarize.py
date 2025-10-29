@@ -95,34 +95,40 @@ def plot_lines(metric, df, out, include_shots=None, ylim=None, compare_df=None):
     max_shot = max(include_shots)
     se_col = f"{metric}_se"
 
+    def _plot_line(df_to_plot, plot_kwargs=None, fill_std=False):
+        df_to_plot_sorted = df_to_plot.sort_values("step")
+        line_kwargs = {"marker": "o"}
+        if plot_kwargs:
+            line_kwargs.update(plot_kwargs)
+
+        plt.plot(df_to_plot_sorted["step"], df_to_plot_sorted[metric], **line_kwargs)
+        if fill_std and se_col in df_to_plot_sorted.columns:
+            std_vals = df_to_plot_sorted[se_col].fillna(0).to_numpy()
+            if np.any(std_vals > 0):
+                lower = df_to_plot_sorted[metric] - std_vals
+                upper = df_to_plot_sorted[metric] + std_vals
+                plt.fill_between(df_to_plot_sorted["step"], lower, upper, color=color, alpha=0.2)
+
     plt.figure()
-    for shot, sub in df.groupby("shot", dropna=False):
-        if shot in include_shots:
-            sub = sub.sort_values("step")
-            color = get_color(shot, max_shot)
-            plt.plot(sub["step"], sub[metric], marker="o", label=f"{shot}-shot", color=color)
-            if se_col in sub.columns:
-                std_vals = sub[se_col].fillna(0).to_numpy()
-                if np.any(std_vals > 0):
-                    lower = sub[metric] - std_vals
-                    upper = sub[metric] + std_vals
-                    plt.fill_between(sub["step"], lower, upper, color=color, alpha=0.2)
-    if compare_df is not None:
-        for shot, sub in compare_df.groupby("shot", dropna=False):
-            if shot in include_shots:
-                sub = sub.sort_values("step")
-                color = get_color(shot, max_shot)
-                plt.plot(sub["step"], sub[metric], marker="o", linestyle="--", color=color)
-                # if se_col in sub.columns:
-                #     std_vals = sub[se_col].fillna(0).to_numpy()
-                #     if np.any(std_vals > 0):
-                #         lower = sub[metric] - std_vals
-                #         upper = sub[metric] + std_vals
-                #         plt.fill_between(sub["step"], lower, upper, color=color, alpha=0.2)
+    for shot in include_shots:
+        color = get_color(shot, max_shot)
+        df_org = df.groupby("shot", dropna=False).get_group(shot)
+        if compare_df is None:
+            _plot_line(df_org, plot_kwargs={"label": f"{shot}-shot", "color": color}, fill_std=True)
+        else:
+            df_ours = compare_df.groupby("shot", dropna=False).get_group(shot)
+            _plot_line(df_org, plot_kwargs={"label": f"{shot}-shot", "linestyle": "--", "color": color}, fill_std=False)
+            _plot_line(df_ours, plot_kwargs={"label": f"{shot}-shot (Ours)", "color": color}, fill_std=True)
+
     plt.xlabel("step")
     plt.ylabel("accuracy")
     plt.title(metric)
-    plt.legend()
+    handles, labels = plt.gca().get_legend_handles_labels()
+    if handles:
+        labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: t[0]))
+        plt.legend(handles, labels)
+    else:
+        plt.legend()
     plt.grid(True, ls=":")
     if ylim is not None:
         plt.ylim(*ylim)
