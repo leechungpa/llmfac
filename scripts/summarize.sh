@@ -7,12 +7,17 @@ eval_dir="/home/$(whoami)/llmfac/results_eval/${model_name}"
 
 
 ##################################################
+# Summarize the main models.
 eval_dir_base="${eval_dir}/base"
-eval_finetuned="${eval_dir}/${category}/qkv_r128_epoch5_lr1.0e-5"
+base_model="${eval_dir}/${category}/qkv_r128_epoch5_lr1.0e-5"
+compare_model="${eval_dir}/${category}/reduce_qkv_r128_epoch5_lr1.0e-5"
+plot_output="/home/$(whoami)/llmfac/results_eval/main_plots"
 
 python src/utils/summarize.py  \
-  --base_dir "${eval_dir_base}/log" "${eval_finetuned}/log" \
-  --output_dir "${eval_finetuned}"
+  --base_dir "${eval_dir_base}/log" "${base_model}/log" \
+  --compare_dir "${eval_dir_base}/log" "${compare_model}/log" \
+  --output_dir $plot_output \
+  --shots 0 3 5
 
 ##################################################
 # Summarize MMLU evaluation results for each finetuned run.
