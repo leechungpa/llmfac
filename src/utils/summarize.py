@@ -89,20 +89,23 @@ def aggregate_metrics(df):
 
     return summary.reset_index().sort_values(["shot", "step"]).reset_index(drop=True)
 
-
-def plot_lines(metric, df, out, max_shot=10):
+def plot_lines(metric, df, out, include_shots=None):
+    if include_shots is None:
+        include_shots = df["shot"].unique()
     plt.figure()
     se_col = f"{metric}_se"
     for shot, sub in df.groupby("shot", dropna=False):
-        sub = sub.sort_values("step")
-        color = get_color(shot, max_shot)
-        plt.plot(sub["step"], sub[metric], marker="o", label=f"{shot}-shot", color=color)
-        if se_col in sub.columns:
-            std_vals = sub[se_col].fillna(0).to_numpy()
-            if np.any(std_vals > 0):
-                lower = sub[metric] - std_vals
-                upper = sub[metric] + std_vals
-                plt.fill_between(sub["step"], lower, upper, color=color, alpha=0.2)
+        if shot in include_shots:
+            sub = sub.sort_values("step")
+            color = get_color(shot, max(include_shots))
+            plt.plot(sub["step"], sub[metric], marker="o", label=f"{shot}-shot", color=color)
+            plotted = True
+            if se_col in sub.columns:
+                std_vals = sub[se_col].fillna(0).to_numpy()
+                if np.any(std_vals > 0):
+                    lower = sub[metric] - std_vals
+                    upper = sub[metric] + std_vals
+                    plt.fill_between(sub["step"], lower, upper, color=color, alpha=0.2)
     plt.xlabel("step")
     plt.ylabel("accuracy")
     plt.title(metric)
@@ -117,6 +120,7 @@ def main():
     p = argparse.ArgumentParser(description="Summarize results and produce plots.")
     p.add_argument("--base_dir", type=str, nargs="+", required=True, help="One or more directories with checkpoint-* subfolders")
     p.add_argument("--output_dir", type=str, default="plots")
+    p.add_argument("--shots", type=int, nargs="+", help="Only plot the specified shot counts (e.g. --shots 1 3 5).")
     args = p.parse_args()
 
     raw_df = make_dataframe(args.base_dir)
@@ -126,8 +130,10 @@ def main():
     raw_df.to_csv(args.output_dir+"/results.csv", index=False)
     agg_df.to_csv(args.output_dir+"/results_summary.csv", index=False)
 
+    target_shots = sorted(set(args.shots)) if args.shots else None
+
     for metric in BASE_METRICS:
-        plot_lines(metric, agg_df, args.output_dir+f"/{metric}.png")
+        plot_lines(metric, agg_df, args.output_dir+f"/{metric}.png", target_shots)
 
     with pd.option_context("display.width", 120, "display.max_columns", None):
         print("\nPreview of aggregated results:")
